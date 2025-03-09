@@ -81,17 +81,24 @@ HOME_RADIUS :: 20.0
 FOOD_RADIUS :: 20.0
 HOME_POS :: Vec2f{50.0, 50.0}
 FOOD_POS :: Vec2f{500.0, 400.0}
+WOOD_POS :: Vec2f{300.0, 100.0}
 
 Ant :: struct {
     pos: Vec2f,
     dir: Vec2f,
+    homing: bool,
     carrying_food: bool,
+    carrying_wood: bool,
     task_len: f32,
 }
+
+food_task: bool
+wood_task: bool
 
 PheromoneCell :: struct {
     home: f32,
     food: f32,
+    wood: f32,
 }
 
 rand_direction :: proc() -> Vec2f {
@@ -108,15 +115,27 @@ update_ant :: proc(ant: ^Ant, pheromones: ^[GRID_WIDTH][GRID_HEIGHT]PheromoneCel
 
 	// Check if at home or food
 	if rl.Vector2Distance(ant.pos, HOME_POS) < HOME_RADIUS {
-		if ant.carrying_food {
+		if ant.homing {
 			ant.carrying_food = false
+			ant.carrying_wood = false
+			ant.homing = false
 			ant.dir = rand_direction()
 			ant.task_len = 100.0
-		}
-	} else if rl.Vector2Distance(ant.pos, FOOD_POS) < FOOD_RADIUS && !ant.carrying_food {
+		} 
+	} else if food_task && rl.Vector2Distance(ant.pos, FOOD_POS) < FOOD_RADIUS && !ant.carrying_food && !ant.carrying_wood {
 		ant.carrying_food = true
+		ant.homing = true
 		ant.dir = rand_direction()
 		ant.task_len = 100.0
+	} else if wood_task && rl.Vector2Distance(ant.pos, WOOD_POS) < FOOD_RADIUS && !ant.carrying_wood && !ant.carrying_food {
+		ant.carrying_wood = true
+		ant.homing = true
+		ant.dir = rand_direction()
+		ant.task_len = 100.0
+	}
+
+	if ant.task_len == 0.0 {
+		ant.homing = true
 	}
 
 	current_pheromone_strength := ant.task_len/100.0
@@ -132,7 +151,12 @@ update_ant :: proc(ant: ^Ant, pheromones: ^[GRID_WIDTH][GRID_HEIGHT]PheromoneCel
 			if foodPher < max_deposit {
 				pheromones[cell_x][cell_y].food = max_deposit
 			} 
-		} else {
+		} else if ant.carrying_wood {
+			woodPher := pheromones[cell_x][cell_y].wood 
+			if woodPher < max_deposit {
+				pheromones[cell_x][cell_y].wood = max_deposit
+			} 
+		} else if !ant.homing {
 			homePher := pheromones[cell_x][cell_y].home 
 			if homePher < max_deposit {
 				pheromones[cell_x][cell_y].home = max_deposit
@@ -156,10 +180,12 @@ update_ant :: proc(ant: ^Ant, pheromones: ^[GRID_WIDTH][GRID_HEIGHT]PheromoneCel
 			y := current_cell_y + dy
 			if x >= 0 && x < GRID_WIDTH && y >= 0 && y < GRID_HEIGHT {
 				strength: f32
-				if (ant.carrying_food) {
+				if (ant.homing) {
 					strength = pheromones[x][y].home
-				} else {
+				} else if food_task {
 					strength = pheromones[x][y].food
+				} else if wood_task {
+					strength = pheromones[x][y].wood
 				}
 				if strength > max_strength || (strength == max_strength && rand.float32() > 0.5) {
 					max_strength = strength
@@ -197,12 +223,15 @@ main :: proc() {
 	result = 0
 	temp_res = 0
 	inputLen = 0
+	food_task = true
+	wood_task = true
 
 	ants: [100]Ant
 	for i in 0..<100 {
 		ants[i] = Ant{
 			pos = HOME_POS,
 			dir = rand_direction(),
+			homing = false,
 			carrying_food = false,
 			task_len = 100.0,
 		}
@@ -211,7 +240,7 @@ main :: proc() {
 	pheromones: [GRID_WIDTH][GRID_HEIGHT]PheromoneCell
 	for x in 0..<WINDOW_WIDTH/CELL_SIZE {
 		for y in 0..<WINDOW_HEIGHT/CELL_SIZE {
-			pheromones[x][y] = PheromoneCell{0, 0}
+			pheromones[x][y] = PheromoneCell{0, 0, 0}
 		}
 	}
 
@@ -241,6 +270,11 @@ main :: proc() {
 					pheromones[x][y].food = 0
 				} else {
 					pheromones[x][y].food -= decay
+				}
+				if (pheromones[x][y].wood < decay) {
+					pheromones[x][y].wood = 0
+				} else {
+					pheromones[x][y].wood -= decay
 				}
 			}
 		}
@@ -287,10 +321,16 @@ main :: proc() {
 
 		rl.DrawCircleV(HOME_POS, HOME_RADIUS, rl.BLUE)
 		rl.DrawCircleV(FOOD_POS, FOOD_RADIUS, rl.GREEN)
+		rl.DrawCircleV(WOOD_POS, FOOD_RADIUS, rl.BROWN)
 
 		// Draw ants
 		for ant in ants {
-			color := rl.RED if ant.carrying_food else rl.BLACK
+			color := rl.BLACK
+			if ant.carrying_food {
+				color = rl.RED
+			} else if ant.carrying_wood {
+				color = rl.MAROON
+			}
 			rl.DrawCircleV(ant.pos, 3, color)
 		}
 
