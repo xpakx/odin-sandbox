@@ -14,7 +14,8 @@ Snake :: struct {
     dir: Vec2i,
     timer: f32,
     dead: bool,
-    looping: bool
+    looping: bool,
+    extend: bool
 }
 
 advance :: proc(s: ^Snake, dt: f32) {
@@ -42,6 +43,10 @@ advance :: proc(s: ^Snake, dt: f32) {
 		cache := s.segments[i]
 		s.segments[i] = old
 		old = cache
+	}
+	if (s.extend) {
+		append(&snake.segments, old)
+		s.extend = false
 	}
 }
 
@@ -87,7 +92,47 @@ checkKeyBoardInput :: proc(s: ^Snake) {
 	}
 }
 
+drawFood :: proc(food: Vec2i) {
+		rect := rl.Rectangle{
+			f32(food.x)*CELL_SIZE,
+			f32(food.y)*CELL_SIZE,
+			CELL_SIZE,
+			CELL_SIZE
+		}
+		rl.DrawRectangleRec(rect, {140, 70, 70, 255})
+}
+
+getRandomFood :: proc(snake: Snake) -> Vec2i {
+	free_fields := 40*30 - len(snake.segments)
+	occupied: [40][30]bool
+
+	for i in 1..<len(snake.segments) {
+		segment := snake.segments[i]
+		occupied[segment[0]][segment[1]] = true
+	}
+
+	val := rl.GetRandomValue(0, i32(free_fields))
+	for x in 1..<40 {
+		for y in 1..<30 {
+			if (occupied[x][y]) {
+				continue
+			}
+			if val == 0 {
+				return {x, y}
+			}
+			val -= 1
+		}
+	}
+	return {0, 0}
+}
+
+checkFoodCollision :: proc(snake: Snake, food: Vec2i) -> bool {
+	head := snake.segments[0]
+	return head == food
+}
+
 snake: Snake
+food: Vec2i
 
 main :: proc() {
 	snake = Snake {
@@ -95,10 +140,12 @@ main :: proc() {
 		{0,1},
 		SPEED,
 		false,
+		true,
 		false
 	}
 	defer delete(snake.segments)
 	append(&snake.segments, Vec2i{10,9}, Vec2i{10,8})
+	food = getRandomFood(snake)
 
 	rl.SetConfigFlags({.VSYNC_HINT})
 	rl.InitWindow(40*CELL_SIZE, 30*CELL_SIZE, "Snake")
@@ -109,7 +156,12 @@ main :: proc() {
 		rl.BeginDrawing()
 		rl.ClearBackground({55, 55, 55, 255})
 		advance(&snake, dt)
+		drawFood(food)
 		drawSnake(snake)
+		if checkFoodCollision(snake, food) {
+			food = getRandomFood(snake)
+			snake.extend = true
+		}
 		rl.EndDrawing()
 	}
 
