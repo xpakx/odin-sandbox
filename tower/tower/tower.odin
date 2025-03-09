@@ -9,6 +9,7 @@ import "core:time"
 
 WINDOW_WIDTH :: 640
 WINDOW_HEIGHT :: 480
+DEBUG :: false
 
 CELL_SIZE :: 8
 
@@ -34,6 +35,13 @@ processBeat :: proc(dt: f32) {
 	temp_res = 0
 	if (result != 1) {
 		inputLen = 0
+	}
+	if inputLen == 3 && input[0] == 1 && input[1] == 1 && input[2] == 1 {
+		food_task = false
+		wood_task = true
+	} else if inputLen == 3 && input[0] == 1 && input[1] == 1 && input[2] == 2 { 
+		wood_task = false
+		food_task = true
 	}
 }
 
@@ -78,7 +86,8 @@ PHEROMONE_CAPACITY :: 10.0
 DECAY_FACTOR :: 0.1
 ANT_SPEED :: 150.0
 HOME_RADIUS :: 20.0
-FOOD_RADIUS :: 20.0
+food_radius: f32
+wood_radius: f32
 HOME_POS :: Vec2f{50.0, 50.0}
 FOOD_POS :: Vec2f{500.0, 400.0}
 WOOD_POS :: Vec2f{300.0, 100.0}
@@ -122,12 +131,14 @@ update_ant :: proc(ant: ^Ant, pheromones: ^[GRID_WIDTH][GRID_HEIGHT]PheromoneCel
 			ant.dir = rand_direction()
 			ant.task_len = 100.0
 		} 
-	} else if food_task && rl.Vector2Distance(ant.pos, FOOD_POS) < FOOD_RADIUS && !ant.carrying_food && !ant.carrying_wood {
+	} else if food_task && rl.Vector2Distance(ant.pos, FOOD_POS) < food_radius && !ant.carrying_food && !ant.carrying_wood {
+		// food_radius -= 0.2
 		ant.carrying_food = true
 		ant.homing = true
 		ant.dir = rand_direction()
 		ant.task_len = 100.0
-	} else if wood_task && rl.Vector2Distance(ant.pos, WOOD_POS) < FOOD_RADIUS && !ant.carrying_wood && !ant.carrying_food {
+	} else if wood_task && rl.Vector2Distance(ant.pos, WOOD_POS) < wood_radius && !ant.carrying_wood && !ant.carrying_food {
+		// wood_radius -= 0.2
 		ant.carrying_wood = true
 		ant.homing = true
 		ant.dir = rand_direction()
@@ -224,7 +235,10 @@ main :: proc() {
 	temp_res = 0
 	inputLen = 0
 	food_task = true
-	wood_task = true
+	wood_task = false
+
+	food_radius = 20.0
+	wood_radius = 20.0
 
 	ants: [100]Ant
 	for i in 0..<100 {
@@ -293,14 +307,16 @@ main :: proc() {
 
 		rl.DrawRectangleRec(rect1, {55, 55, 55, 255})
 
-		for x in 0..<GRID_WIDTH {
-			for y in 0..<GRID_HEIGHT {
-				alpha := u8(100*(pheromones[x][y].home)/(PHEROMONE_CAPACITY))
-				rl.DrawRectangle(
-					i32(x*CELL_SIZE), i32(y*CELL_SIZE),
-					i32(CELL_SIZE), i32(CELL_SIZE),
-					rl.Color{0, 0, 255, alpha},
-				)
+		if (DEBUG) {
+			for x in 0..<GRID_WIDTH {
+				for y in 0..<GRID_HEIGHT {
+					alpha := u8(100*(pheromones[x][y].home)/(PHEROMONE_CAPACITY))
+					rl.DrawRectangle(
+						i32(x*CELL_SIZE), i32(y*CELL_SIZE),
+						i32(CELL_SIZE), i32(CELL_SIZE),
+						rl.Color{0, 0, 255, alpha},
+					)
+				}
 			}
 		}
 
@@ -320,8 +336,8 @@ main :: proc() {
 		}
 
 		rl.DrawCircleV(HOME_POS, HOME_RADIUS, rl.BLUE)
-		rl.DrawCircleV(FOOD_POS, FOOD_RADIUS, rl.GREEN)
-		rl.DrawCircleV(WOOD_POS, FOOD_RADIUS, rl.BROWN)
+		rl.DrawCircleV(FOOD_POS, food_radius, rl.GREEN)
+		rl.DrawCircleV(WOOD_POS, wood_radius, rl.BROWN)
 
 		// Draw ants
 		for ant in ants {
