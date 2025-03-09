@@ -74,19 +74,19 @@ checkKeyBoardInput :: proc(timer: f32) -> i32 {
 	return -1
 }
 
-PHEROMONE_DEPOSIT :: 5.0
 PHEROMONE_CAPACITY :: 10.0
-DECAY_FACTOR :: 0.01
+DECAY_FACTOR :: 0.1
 ANT_SPEED :: 150.0
 HOME_RADIUS :: 20.0
 FOOD_RADIUS :: 20.0
-HOME_POS :: Vec2f{f32(WINDOW_WIDTH)/2, f32(WINDOW_HEIGHT)/2}
-FOOD_POS :: Vec2f{300.0, 100.0}
+HOME_POS :: Vec2f{50.0, 50.0}
+FOOD_POS :: Vec2f{500.0, 400.0}
 
 Ant :: struct {
     pos: Vec2f,
     dir: Vec2f,
     carrying_food: bool,
+    task_len: f32,
 }
 
 PheromoneCell :: struct {
@@ -103,37 +103,40 @@ GRID_WIDTH :: WINDOW_WIDTH/CELL_SIZE
 GRID_HEIGHT :: WINDOW_HEIGHT/CELL_SIZE
 
 update_ant :: proc(ant: ^Ant, pheromones: ^[GRID_WIDTH][GRID_HEIGHT]PheromoneCell, dt: f32) {
+	// Update task length
+	ant.task_len = max(ant.task_len - dt, 0.0)
+
 	// Check if at home or food
 	if rl.Vector2Distance(ant.pos, HOME_POS) < HOME_RADIUS {
 		if ant.carrying_food {
 			ant.carrying_food = false
 			ant.dir = rand_direction()
+			ant.task_len = 100.0
 		}
 	} else if rl.Vector2Distance(ant.pos, FOOD_POS) < FOOD_RADIUS && !ant.carrying_food {
 		ant.carrying_food = true
 		ant.dir = rand_direction()
+		ant.task_len = 100.0
 	}
+
+	current_pheromone_strength := ant.task_len/100.0
+	current_pheromone_strength = math.pow(current_pheromone_strength, 2)
+	max_deposit := current_pheromone_strength * PHEROMONE_CAPACITY
 
 	// Deposit pheromones
 	cell_x := int(ant.pos.x / CELL_SIZE)
 	cell_y := int(ant.pos.y / CELL_SIZE)
 	if cell_x >= 0 && cell_x < GRID_WIDTH && cell_y >= 0 && cell_y < GRID_HEIGHT {
 		if ant.carrying_food {
-			new_var := PHEROMONE_DEPOSIT * dt
 			foodPher := pheromones[cell_x][cell_y].food 
-			if foodPher + new_var > PHEROMONE_CAPACITY {
-				pheromones[cell_x][cell_y].food = PHEROMONE_CAPACITY
-			} else {
-				pheromones[cell_x][cell_y].food += new_var
-			}
+			if foodPher < max_deposit {
+				pheromones[cell_x][cell_y].food = max_deposit
+			} 
 		} else {
-			new_var := PHEROMONE_DEPOSIT * dt
 			homePher := pheromones[cell_x][cell_y].home 
-			if homePher + new_var > PHEROMONE_CAPACITY {
-				pheromones[cell_x][cell_y].home = PHEROMONE_CAPACITY
-			} else {
-				pheromones[cell_x][cell_y].home += new_var
-			}
+			if homePher < max_deposit {
+				pheromones[cell_x][cell_y].home = max_deposit
+			} 
 
 		}
 	}
@@ -201,6 +204,7 @@ main :: proc() {
 			pos = HOME_POS,
 			dir = rand_direction(),
 			carrying_food = false,
+			task_len = 100.0,
 		}
 	}
 
@@ -223,7 +227,9 @@ main :: proc() {
 			update_ant(&ant, &pheromones, dt)
 		}
 
+
 		decay: = DECAY_FACTOR * dt
+
 		for x in 0..<GRID_WIDTH {
 			for y in 0..<GRID_HEIGHT {
 				if (pheromones[x][y].home < decay) {
@@ -255,7 +261,7 @@ main :: proc() {
 
 		for x in 0..<GRID_WIDTH {
 			for y in 0..<GRID_HEIGHT {
-				alpha := u8(255*(pheromones[x][y].home)/(PHEROMONE_CAPACITY))
+				alpha := u8(100*(pheromones[x][y].home)/(PHEROMONE_CAPACITY))
 				rl.DrawRectangle(
 					i32(x*CELL_SIZE), i32(y*CELL_SIZE),
 					i32(CELL_SIZE), i32(CELL_SIZE),
