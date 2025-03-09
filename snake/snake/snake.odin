@@ -12,6 +12,7 @@ Vec2i :: [2]int
 Snake :: struct {
     segments: [dynamic]Vec2i,
     dir: Vec2i,
+    last_dir: Vec2i,
     timer: f32,
     dead: bool,
     looping: bool,
@@ -27,6 +28,7 @@ advance :: proc(s: ^Snake, dt: f32) {
 		return
 	}
 	s.timer = SPEED
+	s.last_dir = s.dir
 	old := s.segments[0]
 	new_head := s.segments[0] + snake.dir
 	if (!onScreen(new_head)) {
@@ -87,7 +89,7 @@ checkKeyBoardInput :: proc(s: ^Snake) {
 		return
 	}
 	
-	if new_dir + s.dir != {0,0} {
+	if new_dir + s.last_dir != {0,0} {
 		s.dir = new_dir
 	}
 }
@@ -151,6 +153,7 @@ main :: proc() {
 	snake = Snake {
 		[dynamic]Vec2i{Vec2i{10,10}},
 		{0,1},
+		{0,1},
 		SPEED,
 		false,
 		true,
@@ -170,6 +173,7 @@ main :: proc() {
 			clear(&snake.segments)
 			append(&snake.segments, Vec2i{10,10}, Vec2i{10,9}, Vec2i{10,8})
 			snake.dir = {0, 1}
+			snake.last_dir = {0, 1}
 			snake.timer = SPEED
 			snake.dead = false
 			food = getRandomFood(snake)
