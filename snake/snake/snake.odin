@@ -131,6 +131,19 @@ checkFoodCollision :: proc(snake: Snake, food: Vec2i) -> bool {
 	return head == food
 }
 
+
+checkSnakeCollision :: proc(snake: Snake) -> bool {
+	head := snake.segments[0]
+
+	for i in 1..<len(snake.segments) {
+		segment := snake.segments[i]
+		if segment[0] == head[0] && segment[1] == head[1] {
+			return true
+		}
+	}
+	return false
+}
+
 snake: Snake
 food: Vec2i
 
@@ -152,6 +165,15 @@ main :: proc() {
 
 	for !rl.WindowShouldClose() {
 		dt := rl.GetFrameTime()
+
+		if snake.dead && rl.IsKeyPressed(.ENTER) {
+			clear(&snake.segments)
+			append(&snake.segments, Vec2i{10,10}, Vec2i{10,9}, Vec2i{10,8})
+			snake.dir = {0, 1}
+			snake.timer = SPEED
+			snake.dead = false
+			food = getRandomFood(snake)
+		}
 		checkKeyBoardInput(&snake)
 		rl.BeginDrawing()
 		rl.ClearBackground({55, 55, 55, 255})
@@ -161,6 +183,9 @@ main :: proc() {
 		if checkFoodCollision(snake, food) {
 			food = getRandomFood(snake)
 			snake.extend = true
+		}
+		if checkSnakeCollision(snake) {
+			snake.dead = true
 		}
 		rl.EndDrawing()
 	}
