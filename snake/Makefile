@@ -1,4 +1,4 @@
-ODIN = odin/odin
+ODIN = ../odin/odin
 
 SRCS = $(wildcard snake/*.odin)
 
