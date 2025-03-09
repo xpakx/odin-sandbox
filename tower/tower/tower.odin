@@ -91,6 +91,7 @@ wood_radius: f32
 HOME_POS :: Vec2f{50.0, 50.0}
 FOOD_POS :: Vec2f{500.0, 400.0}
 WOOD_POS :: Vec2f{300.0, 100.0}
+ENEMY_SPAWN :: Vec2f{WINDOW_WIDTH - 8.0, WINDOW_HEIGHT - 8.0}
 
 Ant :: struct {
     pos: Vec2f,
@@ -99,6 +100,7 @@ Ant :: struct {
     carrying_food: bool,
     carrying_wood: bool,
     task_len: f32,
+    enemy: bool,
 }
 
 food_task: bool
@@ -108,6 +110,7 @@ PheromoneCell :: struct {
     home: f32,
     food: f32,
     wood: f32,
+    enemy: f32,
 }
 
 rand_direction :: proc() -> Vec2f {
@@ -123,26 +126,28 @@ update_ant :: proc(ant: ^Ant, pheromones: ^[GRID_WIDTH][GRID_HEIGHT]PheromoneCel
 	ant.task_len = max(ant.task_len - dt, 0.0)
 
 	// Check if at home or food
-	if rl.Vector2Distance(ant.pos, HOME_POS) < HOME_RADIUS {
-		if ant.homing {
-			ant.carrying_food = false
-			ant.carrying_wood = false
-			ant.homing = false
+	if !ant.enemy {
+		if rl.Vector2Distance(ant.pos, HOME_POS) < HOME_RADIUS {
+			if ant.homing {
+				ant.carrying_food = false
+				ant.carrying_wood = false
+				ant.homing = false
+				ant.dir = rand_direction()
+				ant.task_len = 100.0
+			} 
+		} else if food_task && rl.Vector2Distance(ant.pos, FOOD_POS) < food_radius && !ant.carrying_food && !ant.carrying_wood {
+			// food_radius -= 0.2
+			ant.carrying_food = true
+			ant.homing = true
 			ant.dir = rand_direction()
 			ant.task_len = 100.0
-		} 
-	} else if food_task && rl.Vector2Distance(ant.pos, FOOD_POS) < food_radius && !ant.carrying_food && !ant.carrying_wood {
-		// food_radius -= 0.2
-		ant.carrying_food = true
-		ant.homing = true
-		ant.dir = rand_direction()
-		ant.task_len = 100.0
-	} else if wood_task && rl.Vector2Distance(ant.pos, WOOD_POS) < wood_radius && !ant.carrying_wood && !ant.carrying_food {
-		// wood_radius -= 0.2
-		ant.carrying_wood = true
-		ant.homing = true
-		ant.dir = rand_direction()
-		ant.task_len = 100.0
+		} else if wood_task && rl.Vector2Distance(ant.pos, WOOD_POS) < wood_radius && !ant.carrying_wood && !ant.carrying_food {
+			// wood_radius -= 0.2
+			ant.carrying_wood = true
+			ant.homing = true
+			ant.dir = rand_direction()
+			ant.task_len = 100.0
+		}
 	}
 
 	if ant.task_len == 0.0 {
@@ -157,7 +162,12 @@ update_ant :: proc(ant: ^Ant, pheromones: ^[GRID_WIDTH][GRID_HEIGHT]PheromoneCel
 	cell_x := int(ant.pos.x / CELL_SIZE)
 	cell_y := int(ant.pos.y / CELL_SIZE)
 	if cell_x >= 0 && cell_x < GRID_WIDTH && cell_y >= 0 && cell_y < GRID_HEIGHT {
-		if ant.carrying_food {
+		if ant.enemy {
+			enemyPher := pheromones[cell_x][cell_y].enemy 
+			if enemyPher < max_deposit {
+				pheromones[cell_x][cell_y].enemy = max_deposit
+			} 
+		} else if ant.carrying_food {
 			foodPher := pheromones[cell_x][cell_y].food 
 			if foodPher < max_deposit {
 				pheromones[cell_x][cell_y].food = max_deposit
@@ -191,7 +201,9 @@ update_ant :: proc(ant: ^Ant, pheromones: ^[GRID_WIDTH][GRID_HEIGHT]PheromoneCel
 			y := current_cell_y + dy
 			if x >= 0 && x < GRID_WIDTH && y >= 0 && y < GRID_HEIGHT {
 				strength: f32
-				if (ant.homing) {
+				if ant.enemy {
+					strength = 0 //pheromones[x][y].enemy // TODO
+				} else if (ant.homing) {
 					strength = pheromones[x][y].home
 				} else if food_task {
 					strength = pheromones[x][y].food
@@ -241,6 +253,7 @@ main :: proc() {
 	wood_radius = 20.0
 
 	ants: [100]Ant
+	enemy_ants: [1]Ant
 	for i in 0..<100 {
 		ants[i] = Ant{
 			pos = HOME_POS,
@@ -250,11 +263,19 @@ main :: proc() {
 			task_len = 100.0,
 		}
 	}
+	for i in 0..<1 {
+		enemy_ants[i] = Ant{
+			pos = ENEMY_SPAWN,
+			dir = rand_direction(),
+			enemy = true,
+			task_len = 100.0,
+		}
+	}
 
 	pheromones: [GRID_WIDTH][GRID_HEIGHT]PheromoneCell
 	for x in 0..<WINDOW_WIDTH/CELL_SIZE {
 		for y in 0..<WINDOW_HEIGHT/CELL_SIZE {
-			pheromones[x][y] = PheromoneCell{0, 0, 0}
+			pheromones[x][y] = PheromoneCell{0, 0, 0, 0}
 		}
 	}
 
@@ -267,6 +288,9 @@ main :: proc() {
 		}
 
 		for &ant in ants {
+			update_ant(&ant, &pheromones, dt)
+		}
+		for &ant in enemy_ants {
 			update_ant(&ant, &pheromones, dt)
 		}
 
@@ -347,6 +371,10 @@ main :: proc() {
 			} else if ant.carrying_wood {
 				color = rl.MAROON
 			}
+			rl.DrawCircleV(ant.pos, 3, color)
+		}
+		for ant in enemy_ants {
+			color := rl.GREEN
 			rl.DrawCircleV(ant.pos, 3, color)
 		}
 
