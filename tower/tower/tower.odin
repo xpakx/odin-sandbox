@@ -39,9 +39,11 @@ processBeat :: proc(dt: f32) {
 	if inputLen == 3 && input[0] == 1 && input[1] == 1 && input[2] == 1 {
 		food_task = false
 		wood_task = true
+		task_changed = true
 	} else if inputLen == 3 && input[0] == 1 && input[1] == 1 && input[2] == 2 { 
 		wood_task = false
 		food_task = true
+		task_changed = true
 	}
 }
 
@@ -105,6 +107,7 @@ Ant :: struct {
 
 food_task: bool
 wood_task: bool
+task_changed: bool
 
 PheromoneCell :: struct {
     home: f32,
@@ -127,6 +130,9 @@ update_ant :: proc(ant: ^Ant, pheromones: ^[GRID_WIDTH][GRID_HEIGHT]PheromoneCel
 
 	// Check if at home or food
 	if !ant.enemy {
+		if task_changed {
+			ant.homing = true
+		}
 		if rl.Vector2Distance(ant.pos, HOME_POS) < HOME_RADIUS {
 			if ant.homing {
 				ant.carrying_food = false
@@ -293,6 +299,7 @@ main :: proc() {
 		for &ant in enemy_ants {
 			update_ant(&ant, &pheromones, dt)
 		}
+		task_changed = false
 
 
 		decay: = DECAY_FACTOR * dt
