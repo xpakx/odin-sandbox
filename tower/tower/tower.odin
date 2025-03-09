@@ -13,6 +13,8 @@ timer: f32
 r: u8
 result: i32
 temp_res: i32
+input: [5]u8
+inputLen: int
 
 processBeat :: proc(dt: f32) {
 	timer -= dt
@@ -22,18 +24,25 @@ processBeat :: proc(dt: f32) {
 	timer = BEAT_TIME + timer
 	result = temp_res
 	temp_res = 0
-
+	if (result != 1) {
+		inputLen = 0
+	}
 }
 
 checkKeyBoardInput :: proc(timer: f32) -> i32 {
 	action: = false
+	actionType : u8
 	if rl.IsKeyPressed(.UP) {
+		actionType = 1
 		action = true
 	} else if rl.IsKeyPressed(.DOWN) {
+		actionType = 2
 		action = true
 	} else if rl.IsKeyPressed(.LEFT) {
+		actionType = 3
 		action = true
 	} else if rl.IsKeyPressed(.RIGHT) {
+		actionType = 4
 		action = true
 	} 
 
@@ -47,6 +56,11 @@ checkKeyBoardInput :: proc(timer: f32) -> i32 {
 	
 
 	if timer >=  BEAT_TIME - 0.15 {
+		if inputLen >= 5 {
+			inputLen = 0
+		}
+		input[inputLen] = actionType
+		inputLen += 1
 		return 1
 	}
 	return -1
@@ -58,6 +72,7 @@ main :: proc() {
 	timer = BEAT_TIME
 	result = 0
 	temp_res = 0
+	inputLen = 0
 
 	for !rl.WindowShouldClose() {
 		dt := rl.GetFrameTime()
