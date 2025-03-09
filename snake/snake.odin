@@ -68,6 +68,25 @@ drawSnake :: proc(s: Snake) {
 	}
 }
 
+checkKeyBoardInput :: proc(s: ^Snake) {
+	new_dir: Vec2i
+	if rl.IsKeyPressed(.UP) {
+		new_dir = {0, -1}
+	} else if rl.IsKeyPressed(.DOWN) {
+		new_dir = {0, 1}
+	} else if rl.IsKeyPressed(.LEFT) {
+		new_dir = {-1, 0}
+	} else if rl.IsKeyPressed(.RIGHT) {
+		new_dir = {1, 0}
+	} else {
+		return
+	}
+	
+	if new_dir + s.dir != {0,0} {
+		s.dir = new_dir
+	}
+}
+
 snake: Snake
 
 main :: proc() {
@@ -86,6 +105,7 @@ main :: proc() {
 
 	for !rl.WindowShouldClose() {
 		dt := rl.GetFrameTime()
+		checkKeyBoardInput(&snake)
 		rl.BeginDrawing()
 		rl.ClearBackground({55, 55, 55, 255})
 		advance(&snake, dt)
