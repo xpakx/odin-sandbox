@@ -21,6 +21,7 @@ result: i32
 temp_res: i32
 input: [5]u8
 inputLen: int
+collision_avoidance: bool
 
 
 Vec2i :: [2]int
@@ -176,7 +177,7 @@ getPheromoneStrength :: proc(ant: ^Ant, pheromones: ^[GRID_WIDTH][GRID_HEIGHT]Ph
 	x := cell_x + dx
 	y := cell_y + dy
 	if x >= 0 && x < GRID_WIDTH && y >= 0 && y < GRID_HEIGHT {
-		if (pheromones[x][y].occupied) {
+		if (collision_avoidance && pheromones[x][y].occupied) {
 			return 0
 		}
 		if ant.enemy {
@@ -228,6 +229,9 @@ updateTasks :: proc(ant: ^Ant, dt: f32) {
 
 
 updateOccupation :: proc(pheromones: ^[GRID_WIDTH][GRID_HEIGHT]PheromoneCell, x: int, y: int, value: bool) {
+	if (!collision_avoidance) {
+		return
+	}
 	if x >= 0 && x < GRID_WIDTH && y >= 0 && y < GRID_HEIGHT {
 		pheromones[x][y].occupied = value
 	}
@@ -305,7 +309,7 @@ main :: proc() {
 
 	food_radius = 20.0
 	wood_radius = 20.0
-
+	collision_avoidance = true
 
 	ants: [50]Ant
 	enemy_ants: [1]Ant
