@@ -140,50 +140,8 @@ rand_direction :: proc() -> Vec2f {
 GRID_WIDTH :: WINDOW_WIDTH/CELL_SIZE
 GRID_HEIGHT :: WINDOW_HEIGHT/CELL_SIZE
 
-update_ant :: proc(ant: ^Ant, pheromones: ^[GRID_WIDTH][GRID_HEIGHT]PheromoneCell, dt: f32) {
-	// Update task length
-	ant.task_len = max(ant.task_len - dt, 0.0)
 
-	// Check if at home or food
-	if !ant.enemy {
-		if task_changed {
-			ant.homing = true
-		}
-		if rl.Vector2Distance(ant.pos, HOME_POS) < HOME_RADIUS {
-			if ant.homing {
-				ant.carrying_food = false
-				ant.carrying_wood = false
-				ant.homing = false
-				ant.dir = rand_direction()
-				ant.task_len = 100.0
-			} 
-		} else if food_task && rl.Vector2Distance(ant.pos, FOOD_POS) < food_radius && !ant.carrying_food && !ant.carrying_wood {
-			// food_radius -= 0.2
-			ant.carrying_food = true
-			ant.homing = true
-			ant.dir = rand_direction()
-			ant.task_len = 100.0
-		} else if wood_task && rl.Vector2Distance(ant.pos, WOOD_POS) < wood_radius && !ant.carrying_wood && !ant.carrying_food {
-			// wood_radius -= 0.2
-			ant.carrying_wood = true
-			ant.homing = true
-			ant.dir = rand_direction()
-			ant.task_len = 100.0
-		}
-	}
-
-	if ant.task_len == 0.0 {
-		ant.homing = true
-	}
-
-	current_pheromone_strength := ant.task_len/100.0
-	current_pheromone_strength = math.pow(current_pheromone_strength, 2)
-	max_deposit := current_pheromone_strength * PHEROMONE_CAPACITY
-
-	// Deposit pheromones
-	cell_x := int(ant.pos.x / CELL_SIZE)
-	cell_y := int(ant.pos.y / CELL_SIZE)
-
+depositPheromones :: proc(ant: ^Ant, pheromones: ^[GRID_WIDTH][GRID_HEIGHT]PheromoneCell, cell_x: int, cell_y: int, max_deposit: f32) {
 	if cell_x >= 0 && cell_x < GRID_WIDTH && cell_y >= 0 && cell_y < GRID_HEIGHT {
 		if ant.enemy {
 			enemyPher := pheromones[cell_x][cell_y].enemy 
@@ -208,60 +166,121 @@ update_ant :: proc(ant: ^Ant, pheromones: ^[GRID_WIDTH][GRID_HEIGHT]PheromoneCel
 
 		}
 	}
+}
 
-	// Follow pheromone gradient
-	current_cell_x := int(ant.pos.x / CELL_SIZE)
-	current_cell_y := int(ant.pos.y / CELL_SIZE)
+getPheromoneStrength :: proc(ant: ^Ant, pheromones: ^[GRID_WIDTH][GRID_HEIGHT]PheromoneCell, cell_x: int, cell_y: int, dx: int, dy: int) -> f32 {
 
-	if current_cell_x >= 0 && current_cell_x < GRID_WIDTH && current_cell_y >= 0 && current_cell_y < GRID_HEIGHT {
-		pheromones[current_cell_x][current_cell_y].occupied = false
+	if dx == 0 && dy == 0 {
+		return 0
+	}
+	x := cell_x + dx
+	y := cell_y + dy
+	if x >= 0 && x < GRID_WIDTH && y >= 0 && y < GRID_HEIGHT {
+		if (pheromones[x][y].occupied) {
+			return 0
+		}
+		if ant.enemy {
+			return 0 //enemy // TODO
+		} else if (ant.homing) {
+			return pheromones[x][y].home
+		} else if food_task {
+			return pheromones[x][y].food
+		} else if wood_task {
+			return pheromones[x][y].wood
+		}
+	}
+	return 0
+}
+
+updateTasks :: proc(ant: ^Ant, dt: f32) {
+	// Update task length
+	ant.task_len = max(ant.task_len - dt, 0.0)
+
+	if task_changed {
+		ant.homing = true
+	}
+	if rl.Vector2Distance(ant.pos, HOME_POS) < HOME_RADIUS {
+		if ant.homing {
+			ant.carrying_food = false
+			ant.carrying_wood = false
+			ant.homing = false
+			ant.dir = rand_direction()
+			ant.task_len = 100.0
+		} 
+	} else if food_task && rl.Vector2Distance(ant.pos, FOOD_POS) < food_radius && !ant.carrying_food && !ant.carrying_wood {
+		// food_radius -= 0.2
+		ant.carrying_food = true
+		ant.homing = true
+		ant.dir = rand_direction()
+		ant.task_len = 100.0
+	} else if wood_task && rl.Vector2Distance(ant.pos, WOOD_POS) < wood_radius && !ant.carrying_wood && !ant.carrying_food {
+		// wood_radius -= 0.2
+		ant.carrying_wood = true
+		ant.homing = true
+		ant.dir = rand_direction()
+		ant.task_len = 100.0
 	}
 
+	if ant.task_len == 0.0 {
+		ant.homing = true
+	}
+}
+
+
+updateOccupation :: proc(pheromones: ^[GRID_WIDTH][GRID_HEIGHT]PheromoneCell, x: int, y: int, value: bool) {
+	if x >= 0 && x < GRID_WIDTH && y >= 0 && y < GRID_HEIGHT {
+		pheromones[x][y].occupied = value
+	}
+}
+
+findNewDir :: proc(ant: ^Ant, pheromones: ^[GRID_WIDTH][GRID_HEIGHT]PheromoneCell, cell_x: int, cell_y: int) -> Vec2f {
 	max_strength: f32 = 0
 	target_cell := Vec2f{0, 0}
 	for dx in -1..=1 {
 		for dy in -1..=1 {
-			if dx == 0 && dy == 0 {
-				continue
-			}
-			x := current_cell_x + dx
-			y := current_cell_y + dy
-			if x >= 0 && x < GRID_WIDTH && y >= 0 && y < GRID_HEIGHT {
-				if (pheromones[x][y].occupied) {
-					continue
-				}
-				strength: f32
-				if ant.enemy {
-					strength = 0 //pheromones[x][y].enemy // TODO
-				} else if (ant.homing) {
-					strength = pheromones[x][y].home
-				} else if food_task {
-					strength = pheromones[x][y].food
-				} else if wood_task {
-					strength = pheromones[x][y].wood
-				}
-				if strength > max_strength || (strength == max_strength && rand.float32() > 0.5) {
-					max_strength = strength
-					target_cell = Vec2f{
-						f32(x) * CELL_SIZE + CELL_SIZE/2,
-						f32(y) * CELL_SIZE + CELL_SIZE/2,
-					}
+			strength := getPheromoneStrength(ant, pheromones, cell_x, cell_y, dx, dy)
+			if strength > max_strength || (strength == max_strength && rand.float32() > 0.5) {
+				max_strength = strength
+				target_cell = Vec2f{
+					f32(cell_x + dx) * CELL_SIZE + CELL_SIZE/2,
+					f32(cell_y + dy) * CELL_SIZE + CELL_SIZE/2,
 				}
 			}
 		}
 	}
 
-	// Update direction
+	// Calculate new direction
 	if max_strength > 0 {
 		desired_dir := rl.Vector2Normalize(target_cell - ant.pos)
-		ant.dir = rl.Vector2Normalize(0.7*ant.dir + 0.3*desired_dir)
+		return rl.Vector2Normalize(0.7*ant.dir + 0.3*desired_dir)
 	} else {
 		// Random wander
 		angle := rand.float32_range(-0.3, 0.3)
-		ant.dir = rl.Vector2Rotate(ant.dir, angle)
+		return rl.Vector2Rotate(ant.dir, angle)
+	}
+}
+
+
+update_ant :: proc(ant: ^Ant, pheromones: ^[GRID_WIDTH][GRID_HEIGHT]PheromoneCell, dt: f32) {
+	// Update tasks
+	if !ant.enemy {
+		updateTasks(ant, dt)
 	}
 
+	current_pheromone_strength := ant.task_len/100.0
+	current_pheromone_strength = math.pow(current_pheromone_strength, 2)
+	max_deposit := current_pheromone_strength * PHEROMONE_CAPACITY
+
+	// Deposit pheromones
+	cell_x := int(ant.pos.x / CELL_SIZE)
+	cell_y := int(ant.pos.y / CELL_SIZE)
+	depositPheromones(ant, pheromones, cell_x, cell_y, max_deposit)
+
+	// Follow pheromone gradient
+	updateOccupation(pheromones, cell_x, cell_y, false)
+
 	// Update position
+	ant.dir = findNewDir(ant, pheromones, cell_x, cell_y)
 	ant.pos = ant.pos + ant.dir * ANT_SPEED * dt
 
 	// Keep within screen bounds
@@ -271,9 +290,7 @@ update_ant :: proc(ant: ^Ant, pheromones: ^[GRID_WIDTH][GRID_HEIGHT]PheromoneCel
 	new_cell_x := int(ant.pos.x / CELL_SIZE)
 	new_cell_y := int(ant.pos.y / CELL_SIZE)
 
-	if new_cell_x >= 0 && new_cell_x < GRID_WIDTH && new_cell_y >= 0 && new_cell_y < GRID_HEIGHT {
-		pheromones[new_cell_x][new_cell_y].occupied = true
-	}
+	updateOccupation(pheromones, new_cell_x, new_cell_y, true)
 }
 
 main :: proc() {
