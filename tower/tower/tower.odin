@@ -110,6 +110,7 @@ HOME_POS :: Vec2f{50.0, 50.0}
 FOOD_POS :: Vec2f{500.0, 400.0}
 WOOD_POS :: Vec2f{300.0, 100.0}
 ENEMY_SPAWN :: Vec2f{WINDOW_WIDTH - 8.0, WINDOW_HEIGHT - 8.0}
+FRAME_LENGTH :: 0.1
 
 Ant :: struct {
     pos: Vec2f,
@@ -119,6 +120,8 @@ Ant :: struct {
     carrying_wood: bool,
     task_len: f32,
     enemy: bool,
+    frame_timer: f32,
+    animation_frame: int,
 }
 
 food_task: bool
@@ -322,6 +325,8 @@ main :: proc() {
 			homing = false,
 			carrying_food = false,
 			task_len = 100.0,
+			frame_timer = FRAME_LENGTH,
+			animation_frame = 1,
 		}
 	}
 	for i in 0..<1 {
@@ -330,6 +335,8 @@ main :: proc() {
 			dir = rand_direction(),
 			enemy = true,
 			task_len = 100.0,
+			frame_timer = FRAME_LENGTH,
+			animation_frame = 1,
 		}
 	}
 
@@ -426,7 +433,12 @@ main :: proc() {
 		rl.DrawCircleV(WOOD_POS, wood_radius, rl.BROWN)
 
 		// Draw ants
-		for ant in ants {
+		for &ant in ants {
+			ant.frame_timer -= dt
+			if ant.frame_timer <= 0 {
+				ant.frame_timer = FRAME_LENGTH + ant.frame_timer
+				ant.animation_frame = (ant.animation_frame + 1) % 6
+			}
 			color := rl.BLACK
 			if ant.carrying_food {
 				color = rl.RED
@@ -434,11 +446,15 @@ main :: proc() {
 				color = rl.MAROON
 			}
 			worker_width := f32(worker_texture.width)
+			src_width := worker_width/6.0
+			if ant.dir.x < 0.0 {
+				src_width *= -1
+			}
 			worker_height := f32(worker_texture.height)
 			worker_src := rl.Rectangle {
-				x = 0, 
-				y = 0,
-				width = worker_width / 6.0,
+				x = f32(ant.animation_frame) * (worker_height / 6.0), 
+				y =  worker_width / 6.0,
+				width = src_width,
 				height = worker_height / 6.0
 			}
 			middle_x := 0.5*worker_width/12.0
