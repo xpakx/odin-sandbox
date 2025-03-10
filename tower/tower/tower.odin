@@ -9,9 +9,9 @@ import "core:time"
 
 WINDOW_WIDTH :: 640
 WINDOW_HEIGHT :: 480
-DEBUG :: false
+DEBUG :: true
 
-CELL_SIZE :: 16
+CELL_SIZE :: 8
 
 BEAT_TIME :: 1.0
 
@@ -311,9 +311,11 @@ main :: proc() {
 	wood_radius = 20.0
 	collision_avoidance = true
 
-	ants: [50]Ant
+	worker_texture := rl.LoadTexture("assets/worker.png")
+
+	ants: [20]Ant
 	enemy_ants: [1]Ant
-	for i in 0..<50 {
+	for i in 0..<20 {
 		ants[i] = Ant{
 			pos = HOME_POS,
 			dir = rand_direction(),
@@ -431,7 +433,23 @@ main :: proc() {
 			} else if ant.carrying_wood {
 				color = rl.MAROON
 			}
-			rl.DrawCircleV(ant.pos, 3, color)
+			worker_width := f32(worker_texture.width)
+			worker_height := f32(worker_texture.height)
+			worker_src := rl.Rectangle {
+				x = 0, 
+				y = 0,
+				width = worker_width / 6.0,
+				height = worker_height / 6.0
+			}
+			middle_x := 0.5*worker_width/12.0
+			middle_y := 0.5*worker_height/12.0
+			worker_dst := rl.Rectangle {
+				x = ant.pos.x - middle_x,
+				y = ant.pos.y - middle_y,
+				width = 0.5*worker_width / 6.0,
+				height = 0.5*worker_height / 6.0
+			}
+			rl.DrawTexturePro(worker_texture, worker_src, worker_dst, 0, 0, rl.WHITE)
 		}
 		for ant in enemy_ants {
 			color := rl.GREEN
