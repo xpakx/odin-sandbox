@@ -11,7 +11,7 @@ WINDOW_WIDTH :: 640
 WINDOW_HEIGHT :: 480
 DEBUG :: false
 
-CELL_SIZE :: 8
+CELL_SIZE :: 16
 
 BEAT_TIME :: 1.0
 
@@ -21,6 +21,7 @@ result: i32
 temp_res: i32
 input: [5]u8
 inputLen: int
+
 
 Vec2i :: [2]int
 Vec2f :: [2]f32
@@ -86,7 +87,7 @@ checkKeyBoardInput :: proc(timer: f32) -> i32 {
 
 PHEROMONE_CAPACITY :: 10.0
 DECAY_FACTOR :: 0.1
-ANT_SPEED :: 150.0
+ANT_SPEED :: 75.0
 HOME_RADIUS :: 20.0
 food_radius: f32
 wood_radius: f32
@@ -114,6 +115,7 @@ PheromoneCell :: struct {
     food: f32,
     wood: f32,
     enemy: f32,
+    occupied: bool,
 }
 
 rand_direction :: proc() -> Vec2f {
@@ -167,6 +169,7 @@ update_ant :: proc(ant: ^Ant, pheromones: ^[GRID_WIDTH][GRID_HEIGHT]PheromoneCel
 	// Deposit pheromones
 	cell_x := int(ant.pos.x / CELL_SIZE)
 	cell_y := int(ant.pos.y / CELL_SIZE)
+
 	if cell_x >= 0 && cell_x < GRID_WIDTH && cell_y >= 0 && cell_y < GRID_HEIGHT {
 		if ant.enemy {
 			enemyPher := pheromones[cell_x][cell_y].enemy 
@@ -196,6 +199,10 @@ update_ant :: proc(ant: ^Ant, pheromones: ^[GRID_WIDTH][GRID_HEIGHT]PheromoneCel
 	current_cell_x := int(ant.pos.x / CELL_SIZE)
 	current_cell_y := int(ant.pos.y / CELL_SIZE)
 
+	if current_cell_x >= 0 && current_cell_x < GRID_WIDTH && current_cell_y >= 0 && current_cell_y < GRID_HEIGHT {
+		pheromones[current_cell_x][current_cell_y].occupied = false
+	}
+
 	max_strength: f32 = 0
 	target_cell := Vec2f{0, 0}
 	for dx in -1..=1 {
@@ -206,6 +213,9 @@ update_ant :: proc(ant: ^Ant, pheromones: ^[GRID_WIDTH][GRID_HEIGHT]PheromoneCel
 			x := current_cell_x + dx
 			y := current_cell_y + dy
 			if x >= 0 && x < GRID_WIDTH && y >= 0 && y < GRID_HEIGHT {
+				if (pheromones[x][y].occupied) {
+					continue
+				}
 				strength: f32
 				if ant.enemy {
 					strength = 0 //pheromones[x][y].enemy // TODO
@@ -243,6 +253,13 @@ update_ant :: proc(ant: ^Ant, pheromones: ^[GRID_WIDTH][GRID_HEIGHT]PheromoneCel
 	// Keep within screen bounds
 	ant.pos.x = clamp(ant.pos.x, 0, WINDOW_WIDTH)
 	ant.pos.y = clamp(ant.pos.y, 0, WINDOW_HEIGHT)
+
+	new_cell_x := int(ant.pos.x / CELL_SIZE)
+	new_cell_y := int(ant.pos.y / CELL_SIZE)
+
+	if new_cell_x >= 0 && new_cell_x < GRID_WIDTH && new_cell_y >= 0 && new_cell_y < GRID_HEIGHT {
+		pheromones[new_cell_x][new_cell_y].occupied = true
+	}
 }
 
 main :: proc() {
@@ -258,9 +275,10 @@ main :: proc() {
 	food_radius = 20.0
 	wood_radius = 20.0
 
-	ants: [100]Ant
+
+	ants: [50]Ant
 	enemy_ants: [1]Ant
-	for i in 0..<100 {
+	for i in 0..<50 {
 		ants[i] = Ant{
 			pos = HOME_POS,
 			dir = rand_direction(),
@@ -281,7 +299,7 @@ main :: proc() {
 	pheromones: [GRID_WIDTH][GRID_HEIGHT]PheromoneCell
 	for x in 0..<WINDOW_WIDTH/CELL_SIZE {
 		for y in 0..<WINDOW_HEIGHT/CELL_SIZE {
-			pheromones[x][y] = PheromoneCell{0, 0, 0, 0}
+			pheromones[x][y] = PheromoneCell{0, 0, 0, 0, false}
 		}
 	}
 
