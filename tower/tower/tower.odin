@@ -26,6 +26,20 @@ inputLen: int
 Vec2i :: [2]int
 Vec2f :: [2]f32
 
+checkCommand :: proc(args: ..u8) -> bool {
+    if inputLen != len(args) {
+        return false
+    }
+
+    for i in 0..<len(args) {
+        if input[i] != args[i] {
+            return false
+        }
+    }
+
+    return true
+}
+
 processBeat :: proc(dt: f32) {
 	timer -= dt
 	if timer > 0.0 {
@@ -37,11 +51,11 @@ processBeat :: proc(dt: f32) {
 	if (result != 1) {
 		inputLen = 0
 	}
-	if inputLen == 3 && input[0] == 1 && input[1] == 1 && input[2] == 1 {
+	if checkCommand(1, 1, 1) {
 		food_task = false
 		wood_task = true
 		task_changed = true
-	} else if inputLen == 3 && input[0] == 1 && input[1] == 1 && input[2] == 2 { 
+	} else if checkCommand(1, 1, 2) {
 		wood_task = false
 		food_task = true
 		task_changed = true
