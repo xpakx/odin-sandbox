@@ -434,6 +434,7 @@ main :: proc() {
 
 		// Draw ants
 		for &ant in ants {
+			animation_type := 5 if ant.carrying_food || ant.carrying_wood else 1
 			ant.frame_timer -= dt
 			if ant.frame_timer <= 0 {
 				ant.frame_timer = FRAME_LENGTH + ant.frame_timer
@@ -453,7 +454,7 @@ main :: proc() {
 			worker_height := f32(worker_texture.height)
 			worker_src := rl.Rectangle {
 				x = f32(ant.animation_frame) * (worker_height / 6.0), 
-				y =  worker_width / 6.0,
+				y =  f32(animation_type) * worker_width / 6.0,
 				width = src_width,
 				height = worker_height / 6.0
 			}
