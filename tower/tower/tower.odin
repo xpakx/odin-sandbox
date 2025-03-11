@@ -6,7 +6,6 @@ import "core:math/rand"
 import "core:math"
 import "core:time"
 
-
 WINDOW_WIDTH :: 640
 WINDOW_HEIGHT :: 480
 DEBUG :: true
@@ -22,7 +21,7 @@ temp_res: i32
 input: [5]u8
 inputLen: int
 collision_avoidance: bool
-
+sound: rl.Sound
 
 Vec2i :: [2]int
 Vec2f :: [2]f32
@@ -41,11 +40,19 @@ checkCommand :: proc(args: ..u8) -> bool {
     return true
 }
 
+beat_played := false
+
 processBeat :: proc(dt: f32) {
 	timer -= dt
+
+	if !beat_played && timer < BEAT_TIME - 0.07 {
+		rl.PlaySound(sound)
+		beat_played = true
+	}
 	if timer > 0.0 {
 		return
 	}
+	beat_played = false
 	timer = BEAT_TIME + timer
 	result = temp_res
 	temp_res = 0
@@ -92,7 +99,6 @@ checkKeyBoardInput :: proc(timer: f32) -> i32 {
 		return -1
 	}
 	
-
 	if timer >=  BEAT_TIME - 0.15 {
 		if inputLen >= 5 {
 			inputLen = 0
@@ -113,6 +119,8 @@ wood_radius: f32
 HOME_POS :: Vec2f{50.0, 50.0}
 FOOD_POS :: Vec2f{500.0, 400.0}
 WOOD_POS :: Vec2f{300.0, 100.0}
+
+TOWER_SPOT :: Vec2f{500.0, 120.0}
 ENEMY_SPAWN :: Vec2f{WINDOW_WIDTH - 8.0, WINDOW_HEIGHT - 8.0}
 FRAME_LENGTH :: 0.1
 row_list: [GRID_HEIGHT]^Ant
@@ -138,6 +146,8 @@ Ant :: struct {
     nextInRow: ^Ant,
     walking_animation: Animation,
     walking_res_animation: Animation,
+    idle_animation: Animation,
+    idle_res_animation: Animation,
 }
 
 PawnTask :: enum {
@@ -297,9 +307,26 @@ findNewDir :: proc(ant: ^Ant, pheromones: ^[GRID_WIDTH][GRID_HEIGHT]PheromoneCel
 	}
 }
 
+addToDrawingList :: proc(ant: ^Ant) {
+	new_cell_y := int(ant.pos.y / CELL_SIZE)
+	if !(new_cell_y >= 0 && new_cell_y < GRID_HEIGHT) {
+		new_cell_y = new_cell_y - 1
+	}
+	if row_list[new_cell_y] == nil {
+		row_list[new_cell_y] = ant
+	} else {
+		ant.nextInRow = row_list[new_cell_y]
+		row_list[new_cell_y] = ant
+	}
+}
 
 update_ant :: proc(ant: ^Ant, pheromones: ^[GRID_WIDTH][GRID_HEIGHT]PheromoneCell, dt: f32) {
 	ant.nextInRow = nil
+
+	if !ant.enemy && result != 1 {
+		addToDrawingList(ant)
+		return
+	}
 
 	if !ant.enemy {
 		updateTasks(ant, dt)
@@ -326,22 +353,18 @@ update_ant :: proc(ant: ^Ant, pheromones: ^[GRID_WIDTH][GRID_HEIGHT]PheromoneCel
 	new_cell_y := int(ant.pos.y / CELL_SIZE)
 
 	updateOccupation(pheromones, new_cell_x, new_cell_y, true)
-
-	new_cell_y = int(ant.pos.y / CELL_SIZE)
-	if !(new_cell_y >= 0 && new_cell_y < GRID_HEIGHT) {
-		new_cell_y = new_cell_y - 1
-	}
-	if row_list[new_cell_y] == nil {
-		row_list[new_cell_y] = ant
-	} else {
-		ant.nextInRow = row_list[new_cell_y]
-		row_list[new_cell_y] = ant
-	}
+	addToDrawingList(ant)
 }
 
 main :: proc() {
 	rl.SetConfigFlags({.VSYNC_HINT})
 	rl.InitWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "Tower")
+	defer rl.CloseWindow()
+	rl.InitAudioDevice()
+	defer rl.CloseAudioDevice()
+	sound = rl.LoadSound("assets/drum.wav")
+	defer rl.UnloadSound(sound)
+
 	timer = BEAT_TIME
 	result = 0
 	temp_res = 0
@@ -371,6 +394,22 @@ main :: proc() {
 		animation_end = 5 * 6 + 5,
 	}
 
+	idle_animation := Animation {
+		texture = worker_texture,
+		rows = 6,
+		columns = 6,
+		animation_start = 0 * 6,
+		animation_end = 0 * 6 + 5,
+	}
+
+	idle_res_animation := Animation {
+		texture = worker_texture,
+		rows = 6,
+		columns = 6,
+		animation_start = 4 * 6,
+		animation_end = 4 * 6 + 5,
+	}
+
 	enemy_walking_animation := Animation {
 		texture = enemy_texture,
 		rows = 8,
@@ -393,6 +432,8 @@ main :: proc() {
 			nextInRow = nil,
 			walking_animation = walking_animation,
 			walking_res_animation = walking_res_animation,
+			idle_animation = idle_animation,
+			idle_res_animation = idle_res_animation,
 		}
 	}
 	for i in 0..<1 {
@@ -433,22 +474,24 @@ main :: proc() {
 
 		decay: = DECAY_FACTOR * dt
 
-		for x in 0..<GRID_WIDTH {
-			for y in 0..<GRID_HEIGHT {
-				if (pheromones[x][y].home < decay) {
-					pheromones[x][y].home = 0
-				} else {
-					pheromones[x][y].home -= decay
-				}
-				if (pheromones[x][y].food < decay) {
-					pheromones[x][y].food = 0
-				} else {
-					pheromones[x][y].food -= decay
-				}
-				if (pheromones[x][y].wood < decay) {
-					pheromones[x][y].wood = 0
-				} else {
-					pheromones[x][y].wood -= decay
+		if result == 1 { // ???? still not sure if that's an ideal solution
+			for x in 0..<GRID_WIDTH {
+				for y in 0..<GRID_HEIGHT {
+					if (pheromones[x][y].home < decay) {
+						pheromones[x][y].home = 0
+					} else {
+						pheromones[x][y].home -= decay
+					}
+					if (pheromones[x][y].food < decay) {
+						pheromones[x][y].food = 0
+					} else {
+						pheromones[x][y].food -= decay
+					}
+					if (pheromones[x][y].wood < decay) {
+						pheromones[x][y].wood = 0
+					} else {
+						pheromones[x][y].wood -= decay
+					}
 				}
 			}
 		}
@@ -498,6 +541,7 @@ main :: proc() {
 		rl.DrawCircleV(HOME_POS, HOME_RADIUS, rl.BLUE)
 		rl.DrawCircleV(FOOD_POS, food_radius, rl.GREEN)
 		rl.DrawCircleV(WOOD_POS, wood_radius, rl.BROWN)
+		rl.DrawCircleV(TOWER_SPOT, wood_radius, rl.GRAY)
 
 		// Draw ants
 		for i in 0..<len(row_list) {
@@ -505,6 +549,9 @@ main :: proc() {
 			for antPtr != nil {
 				ant := &antPtr^
 				animation := ant.walking_res_animation if ant.carrying_food || ant.carrying_wood else ant.walking_animation
+				if result != 1 && !ant.enemy {
+					animation = ant.idle_res_animation if ant.carrying_food || ant.carrying_wood else ant.idle_animation
+				}
 				ant.frame_timer -= dt
 				frames := animation.animation_end - animation.animation_start + 1
 				if ant.frame_timer <= 0 {
@@ -544,6 +591,4 @@ main :: proc() {
 
 		rl.EndDrawing()
 	}
-
-	rl.CloseWindow()
 }
