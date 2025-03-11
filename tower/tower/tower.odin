@@ -113,6 +113,14 @@ ENEMY_SPAWN :: Vec2f{WINDOW_WIDTH - 8.0, WINDOW_HEIGHT - 8.0}
 FRAME_LENGTH :: 0.1
 row_list: [GRID_HEIGHT]^Ant
 
+Animation :: struct {
+	texture: rl.Texture,
+	rows: int,
+	columns: int,
+	animation_start: int,
+	animation_end: int,
+}
+
 Ant :: struct {
     pos: Vec2f,
     dir: Vec2f,
@@ -124,6 +132,8 @@ Ant :: struct {
     frame_timer: f32,
     animation_frame: int,
     nextInRow: ^Ant,
+    walking_animation: Animation,
+    walking_res_animation: Animation,
 }
 
 food_task: bool
@@ -330,6 +340,31 @@ main :: proc() {
 	collision_avoidance = true
 
 	worker_texture := rl.LoadTexture("assets/worker.png")
+	enemy_texture := rl.LoadTexture("assets/enemy_knight.png")
+
+	walking_animation := Animation {
+		texture = worker_texture,
+		rows = 6,
+		columns = 6,
+		animation_start = 1 * 6,
+		animation_end = 1 * 6 + 5,
+	}
+
+	walking_res_animation := Animation {
+		texture = worker_texture,
+		rows = 6,
+		columns = 6,
+		animation_start = 5 * 6,
+		animation_end = 5 * 6 + 5,
+	}
+
+	enemy_walking_animation := Animation {
+		texture = enemy_texture,
+		rows = 8,
+		columns = 6,
+		animation_start = 1 * 6,
+		animation_end = 1 * 6 + 5,
+	}
 
 	ants: [20]Ant
 	enemy_ants: [1]Ant
@@ -341,8 +376,10 @@ main :: proc() {
 			carrying_food = false,
 			task_len = 100.0,
 			frame_timer = FRAME_LENGTH,
-			animation_frame = 1,
+			animation_frame = 0,
 			nextInRow = nil,
+			walking_animation = walking_animation,
+			walking_res_animation = walking_res_animation,
 		}
 	}
 	for i in 0..<1 {
@@ -352,7 +389,8 @@ main :: proc() {
 			enemy = true,
 			task_len = 100.0,
 			frame_timer = FRAME_LENGTH,
-			animation_frame = 1,
+			animation_frame = 0,
+			walking_animation = enemy_walking_animation,
 		}
 	}
 
@@ -453,39 +491,38 @@ main :: proc() {
 			antPtr := row_list[i]
 			for antPtr != nil {
 				ant := &antPtr^
-				animation_type := 5 if ant.carrying_food || ant.carrying_wood else 1
+				animation := ant.walking_res_animation if ant.carrying_food || ant.carrying_wood else ant.walking_animation
 				ant.frame_timer -= dt
+				frames := animation.animation_end - animation.animation_start + 1
 				if ant.frame_timer <= 0 {
 					ant.frame_timer = FRAME_LENGTH + ant.frame_timer
-					ant.animation_frame = (ant.animation_frame + 1) % 6
+					ant.animation_frame = (ant.animation_frame + 1) % frames
 				}
-				color := rl.BLACK
-				if ant.carrying_food {
-					color = rl.RED
-				} else if ant.carrying_wood {
-					color = rl.MAROON
-				}
-				worker_width := f32(worker_texture.width)
-				src_width := worker_width/6.0
+				current_frame := ant.animation_frame + animation.animation_start
+
+				worker_width := f32(animation.texture.width)
+				src_width := worker_width/f32(animation.columns)
 				if ant.dir.x < 0.0 {
 					src_width *= -1
 				}
-				worker_height := f32(worker_texture.height)
+				worker_height := f32(animation.texture.height)
+				src_x := current_frame %% animation.rows
+				src_y := current_frame / animation.rows
 				worker_src := rl.Rectangle {
-					x = f32(ant.animation_frame) * (worker_height / 6.0), 
-					y =  f32(animation_type) * worker_width / 6.0,
+					x = f32(src_x) * (worker_height / f32(animation.rows)), 
+					y =  f32(src_y) * worker_width / f32(animation.columns),
 					width = src_width,
-					height = worker_height / 6.0
+					height = worker_height / f32(animation.rows)
 				}
-				middle_x := 0.5*worker_width/12.0
-				middle_y := 0.5*worker_height/12.0
+				middle_x := 0.5*worker_width/(2.0*f32(animation.columns))
+				middle_y := 0.5*worker_height/(2.0*f32(animation.rows))
 				worker_dst := rl.Rectangle {
 					x = ant.pos.x - middle_x,
 					y = ant.pos.y - middle_y,
-					width = 0.5*worker_width / 6.0,
-					height = 0.5*worker_height / 6.0
+					width = 0.5*worker_width / f32(animation.columns),
+					height = 0.5*worker_height / f32(animation.rows)
 				}
-				rl.DrawTexturePro(worker_texture, worker_src, worker_dst, 0, 0, rl.WHITE)
+				rl.DrawTexturePro(animation.texture, worker_src, worker_dst, 0, 0, rl.WHITE)
 				antPtr = ant.nextInRow
 			}
 			row_list[i] = nil
