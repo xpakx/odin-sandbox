@@ -111,6 +111,7 @@ FOOD_POS :: Vec2f{500.0, 400.0}
 WOOD_POS :: Vec2f{300.0, 100.0}
 ENEMY_SPAWN :: Vec2f{WINDOW_WIDTH - 8.0, WINDOW_HEIGHT - 8.0}
 FRAME_LENGTH :: 0.1
+row_list: [GRID_HEIGHT]^Ant
 
 Ant :: struct {
     pos: Vec2f,
@@ -122,6 +123,7 @@ Ant :: struct {
     enemy: bool,
     frame_timer: f32,
     animation_frame: int,
+    nextInRow: ^Ant,
 }
 
 food_task: bool
@@ -269,6 +271,8 @@ findNewDir :: proc(ant: ^Ant, pheromones: ^[GRID_WIDTH][GRID_HEIGHT]PheromoneCel
 
 
 update_ant :: proc(ant: ^Ant, pheromones: ^[GRID_WIDTH][GRID_HEIGHT]PheromoneCell, dt: f32) {
+	ant.nextInRow = nil
+
 	// Update tasks
 	if !ant.enemy {
 		updateTasks(ant, dt)
@@ -298,6 +302,17 @@ update_ant :: proc(ant: ^Ant, pheromones: ^[GRID_WIDTH][GRID_HEIGHT]PheromoneCel
 	new_cell_y := int(ant.pos.y / CELL_SIZE)
 
 	updateOccupation(pheromones, new_cell_x, new_cell_y, true)
+
+	new_cell_y = int(ant.pos.y / CELL_SIZE)
+	if !(new_cell_y >= 0 && new_cell_y < GRID_HEIGHT) {
+		new_cell_y = new_cell_y - 1
+	}
+	if row_list[new_cell_y] == nil {
+		row_list[new_cell_y] = ant
+	} else {
+		ant.nextInRow = row_list[new_cell_y]
+		row_list[new_cell_y] = ant
+	}
 }
 
 main :: proc() {
@@ -327,6 +342,7 @@ main :: proc() {
 			task_len = 100.0,
 			frame_timer = FRAME_LENGTH,
 			animation_frame = 1,
+			nextInRow = nil,
 		}
 	}
 	for i in 0..<1 {
@@ -433,44 +449,46 @@ main :: proc() {
 		rl.DrawCircleV(WOOD_POS, wood_radius, rl.BROWN)
 
 		// Draw ants
-		for &ant in ants {
-			animation_type := 5 if ant.carrying_food || ant.carrying_wood else 1
-			ant.frame_timer -= dt
-			if ant.frame_timer <= 0 {
-				ant.frame_timer = FRAME_LENGTH + ant.frame_timer
-				ant.animation_frame = (ant.animation_frame + 1) % 6
+		for i in 0..<len(row_list) {
+			antPtr := row_list[i]
+			for antPtr != nil {
+				ant := &antPtr^
+				animation_type := 5 if ant.carrying_food || ant.carrying_wood else 1
+				ant.frame_timer -= dt
+				if ant.frame_timer <= 0 {
+					ant.frame_timer = FRAME_LENGTH + ant.frame_timer
+					ant.animation_frame = (ant.animation_frame + 1) % 6
+				}
+				color := rl.BLACK
+				if ant.carrying_food {
+					color = rl.RED
+				} else if ant.carrying_wood {
+					color = rl.MAROON
+				}
+				worker_width := f32(worker_texture.width)
+				src_width := worker_width/6.0
+				if ant.dir.x < 0.0 {
+					src_width *= -1
+				}
+				worker_height := f32(worker_texture.height)
+				worker_src := rl.Rectangle {
+					x = f32(ant.animation_frame) * (worker_height / 6.0), 
+					y =  f32(animation_type) * worker_width / 6.0,
+					width = src_width,
+					height = worker_height / 6.0
+				}
+				middle_x := 0.5*worker_width/12.0
+				middle_y := 0.5*worker_height/12.0
+				worker_dst := rl.Rectangle {
+					x = ant.pos.x - middle_x,
+					y = ant.pos.y - middle_y,
+					width = 0.5*worker_width / 6.0,
+					height = 0.5*worker_height / 6.0
+				}
+				rl.DrawTexturePro(worker_texture, worker_src, worker_dst, 0, 0, rl.WHITE)
+				antPtr = ant.nextInRow
 			}
-			color := rl.BLACK
-			if ant.carrying_food {
-				color = rl.RED
-			} else if ant.carrying_wood {
-				color = rl.MAROON
-			}
-			worker_width := f32(worker_texture.width)
-			src_width := worker_width/6.0
-			if ant.dir.x < 0.0 {
-				src_width *= -1
-			}
-			worker_height := f32(worker_texture.height)
-			worker_src := rl.Rectangle {
-				x = f32(ant.animation_frame) * (worker_height / 6.0), 
-				y =  f32(animation_type) * worker_width / 6.0,
-				width = src_width,
-				height = worker_height / 6.0
-			}
-			middle_x := 0.5*worker_width/12.0
-			middle_y := 0.5*worker_height/12.0
-			worker_dst := rl.Rectangle {
-				x = ant.pos.x - middle_x,
-				y = ant.pos.y - middle_y,
-				width = 0.5*worker_width / 6.0,
-				height = 0.5*worker_height / 6.0
-			}
-			rl.DrawTexturePro(worker_texture, worker_src, worker_dst, 0, 0, rl.WHITE)
-		}
-		for ant in enemy_ants {
-			color := rl.GREEN
-			rl.DrawCircleV(ant.pos, 3, color)
+			row_list[i] = nil
 		}
 
 
