@@ -53,12 +53,16 @@ processBeat :: proc(dt: f32) {
 		inputLen = 0
 	}
 	if checkCommand(1, 1, 1) {
-		food_task = false
-		wood_task = true
+		pawnTask = .Wood
 		task_changed = true
 	} else if checkCommand(1, 1, 2) {
-		wood_task = false
-		food_task = true
+		pawnTask = .Food
+		task_changed = true
+	} else if checkCommand(1, 3, 1) {
+		pawnTask = .NormalTower
+		task_changed = true
+	} else if checkCommand(1, 3, 2) {
+		pawnTask = .ArcherTower
 		task_changed = true
 	}
 }
@@ -136,8 +140,13 @@ Ant :: struct {
     walking_res_animation: Animation,
 }
 
-food_task: bool
-wood_task: bool
+PawnTask :: enum {
+    Food,
+    Wood,
+    NormalTower,
+    ArcherTower,
+}
+pawnTask: PawnTask
 task_changed: bool
 
 PheromoneCell :: struct {
@@ -156,31 +165,40 @@ rand_direction :: proc() -> Vec2f {
 GRID_WIDTH :: WINDOW_WIDTH/CELL_SIZE
 GRID_HEIGHT :: WINDOW_HEIGHT/CELL_SIZE
 
+isForaging :: proc() -> bool {
+	return pawnTask == .Food || pawnTask == .Wood
+}
 
-depositPheromones :: proc(ant: ^Ant, pheromones: ^[GRID_WIDTH][GRID_HEIGHT]PheromoneCell, cell_x: int, cell_y: int, max_deposit: f32) {
-	if cell_x >= 0 && cell_x < GRID_WIDTH && cell_y >= 0 && cell_y < GRID_HEIGHT {
-		if ant.enemy {
-			enemyPher := pheromones[cell_x][cell_y].enemy 
-			if enemyPher < max_deposit {
-				pheromones[cell_x][cell_y].enemy = max_deposit
-			} 
-		} else if ant.carrying_food {
-			foodPher := pheromones[cell_x][cell_y].food 
-			if foodPher < max_deposit {
-				pheromones[cell_x][cell_y].food = max_deposit
-			} 
-		} else if ant.carrying_wood {
-			woodPher := pheromones[cell_x][cell_y].wood 
-			if woodPher < max_deposit {
-				pheromones[cell_x][cell_y].wood = max_deposit
-			} 
-		} else if !ant.homing {
-			homePher := pheromones[cell_x][cell_y].home 
-			if homePher < max_deposit {
-				pheromones[cell_x][cell_y].home = max_deposit
-			} 
+updatePheromone :: proc(pher: ^f32, max_deposit: f32) {
+    pher^ = max(pher^, max_deposit)
+}
 
-		}
+depositResourcePheromones :: proc(ant: Ant, cell: ^PheromoneCell, maxDeposit: f32) {
+	if ant.carrying_food {
+		updatePheromone(&cell.food, maxDeposit)
+	} else if ant.carrying_wood {
+		updatePheromone(&cell.wood, maxDeposit)
+	}
+}
+
+insideGrid :: proc(x: int, y: int) -> bool {
+	return x >= 0 && x < GRID_WIDTH && y >= 0 && y < GRID_HEIGHT
+}
+
+depositPheromones :: proc(ant: ^Ant, pheromones: ^[GRID_WIDTH][GRID_HEIGHT]PheromoneCell, x: int, y: int, max_deposit: f32) {
+	if !insideGrid(x, y) {
+		return
+	}
+	if ant.enemy {
+		return // TODO
+	} 
+	cell := &pheromones[x][y]
+	if !ant.homing {
+		updatePheromone(&cell.home, max_deposit)
+	}
+	if isForaging() {
+		depositResourcePheromones(ant^, cell, max_deposit)
+		return
 	}
 }
 
@@ -191,25 +209,26 @@ getPheromoneStrength :: proc(ant: ^Ant, pheromones: ^[GRID_WIDTH][GRID_HEIGHT]Ph
 	}
 	x := cell_x + dx
 	y := cell_y + dy
-	if x >= 0 && x < GRID_WIDTH && y >= 0 && y < GRID_HEIGHT {
-		if (collision_avoidance && pheromones[x][y].occupied) {
-			return 0
-		}
-		if ant.enemy {
-			return 0 //enemy // TODO
-		} else if (ant.homing) {
-			return pheromones[x][y].home
-		} else if food_task {
-			return pheromones[x][y].food
-		} else if wood_task {
-			return pheromones[x][y].wood
-		}
+	if !insideGrid(x, y) {
+		return 0 
+	}
+
+	if (collision_avoidance && pheromones[x][y].occupied) {
+		return 0
+	}
+	if ant.enemy {
+		return 0 //enemy // TODO
+	} else if (ant.homing) {
+		return pheromones[x][y].home
+	} else if pawnTask == .Food {
+		return pheromones[x][y].food
+	} else if pawnTask == .Wood {
+		return pheromones[x][y].wood
 	}
 	return 0
 }
 
 updateTasks :: proc(ant: ^Ant, dt: f32) {
-	// Update task length
 	ant.task_len = max(ant.task_len - dt, 0.0)
 
 	if task_changed {
@@ -223,13 +242,13 @@ updateTasks :: proc(ant: ^Ant, dt: f32) {
 			ant.dir = rand_direction()
 			ant.task_len = 100.0
 		} 
-	} else if food_task && rl.Vector2Distance(ant.pos, FOOD_POS) < food_radius && !ant.carrying_food && !ant.carrying_wood {
+	} else if pawnTask == .Food && rl.Vector2Distance(ant.pos, FOOD_POS) < food_radius && !ant.carrying_food && !ant.carrying_wood {
 		// food_radius -= 0.2
 		ant.carrying_food = true
 		ant.homing = true
 		ant.dir = rand_direction()
 		ant.task_len = 100.0
-	} else if wood_task && rl.Vector2Distance(ant.pos, WOOD_POS) < wood_radius && !ant.carrying_wood && !ant.carrying_food {
+	} else if pawnTask == .Wood && rl.Vector2Distance(ant.pos, WOOD_POS) < wood_radius && !ant.carrying_wood && !ant.carrying_food {
 		// wood_radius -= 0.2
 		ant.carrying_wood = true
 		ant.homing = true
@@ -242,12 +261,11 @@ updateTasks :: proc(ant: ^Ant, dt: f32) {
 	}
 }
 
-
 updateOccupation :: proc(pheromones: ^[GRID_WIDTH][GRID_HEIGHT]PheromoneCell, x: int, y: int, value: bool) {
 	if (!collision_avoidance) {
 		return
 	}
-	if x >= 0 && x < GRID_WIDTH && y >= 0 && y < GRID_HEIGHT {
+	if insideGrid(x, y) {
 		pheromones[x][y].occupied = value
 	}
 }
@@ -283,7 +301,6 @@ findNewDir :: proc(ant: ^Ant, pheromones: ^[GRID_WIDTH][GRID_HEIGHT]PheromoneCel
 update_ant :: proc(ant: ^Ant, pheromones: ^[GRID_WIDTH][GRID_HEIGHT]PheromoneCell, dt: f32) {
 	ant.nextInRow = nil
 
-	// Update tasks
 	if !ant.enemy {
 		updateTasks(ant, dt)
 	}
@@ -292,19 +309,16 @@ update_ant :: proc(ant: ^Ant, pheromones: ^[GRID_WIDTH][GRID_HEIGHT]PheromoneCel
 	current_pheromone_strength = math.pow(current_pheromone_strength, 2)
 	max_deposit := current_pheromone_strength * PHEROMONE_CAPACITY
 
-	// Deposit pheromones
 	cell_x := int(ant.pos.x / CELL_SIZE)
 	cell_y := int(ant.pos.y / CELL_SIZE)
 	depositPheromones(ant, pheromones, cell_x, cell_y, max_deposit)
 
-	// Follow pheromone gradient
 	updateOccupation(pheromones, cell_x, cell_y, false)
 
-	// Update position
+	// Follow pheromone gradient
 	ant.dir = findNewDir(ant, pheromones, cell_x, cell_y)
 	ant.pos = ant.pos + ant.dir * ANT_SPEED * dt
 
-	// Keep within screen bounds
 	ant.pos.x = clamp(ant.pos.x, 0, WINDOW_WIDTH)
 	ant.pos.y = clamp(ant.pos.y, 0, WINDOW_HEIGHT)
 
@@ -332,8 +346,7 @@ main :: proc() {
 	result = 0
 	temp_res = 0
 	inputLen = 0
-	food_task = true
-	wood_task = false
+	pawnTask = .Food
 
 	food_radius = 20.0
 	wood_radius = 20.0
