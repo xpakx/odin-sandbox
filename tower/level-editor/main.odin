@@ -20,7 +20,39 @@ Tile :: struct {
 	x: int,
 	y: int,
 }
-tiles: [GRID_WIDTH][GRID_HEIGHT]Tile
+
+Cell :: struct {
+	tile: ^Tile,
+}
+
+tiles: [GRID_WIDTH][GRID_HEIGHT]Cell
+
+drawTile :: proc(x: int, y: int) {
+	cell := tiles[x][y]
+	if cell.tile == nil {
+		return
+	}
+	tile := cell.tile
+	tile_width := f32(tile.texture.width)
+	src_width := tile_width/f32(tile.columns)
+
+	tile_height := f32(tile.texture.height)
+	src_height := tile_height/f32(tile.rows)
+
+	tile_src := rl.Rectangle {
+		x = f32(tile.x) * (tile_height / f32(tile.rows)), 
+		y =  f32(tile.y) * tile_width / f32(tile.columns),
+		width = src_width,
+		height = src_height
+	}
+	tile_dst := rl.Rectangle {
+		x = 0,
+		y = 0,
+		width = 0.5*src_width,
+		height = 0.5*src_height
+	}
+	rl.DrawTexturePro(tile.texture, tile_src, tile_dst, 0, 0, rl.WHITE)
+}
 
 main :: proc() {
 	rl.SetConfigFlags({.VSYNC_HINT})
@@ -29,13 +61,14 @@ main :: proc() {
 
 
 	ground_texture := rl.LoadTexture("assets/ground.png")
-	tiles[0][0] = Tile {
+	tile := Tile {
 		texture = ground_texture,
 		rows = 4,
 		columns = 10,
 		x = 1,
 		y = 1,
 	}
+	tiles[0][0] = Cell { &tile }
 
 	for !rl.WindowShouldClose() {
 		dt := rl.GetFrameTime()
@@ -43,27 +76,9 @@ main :: proc() {
 		rl.BeginDrawing()
 		rl.ClearBackground({55, 55, 55, 255})
 
-		for row in tiles {
-			for tile in row {
-				tile_width := f32(tile.texture.width)
-				src_width := tile_width/f32(tile.columns)
-
-				tile_height := f32(tile.texture.height)
-				src_height := tile_height/f32(tile.rows)
-
-				tile_src := rl.Rectangle {
-					x = f32(tile.x) * (tile_height / f32(tile.rows)), 
-					y =  f32(tile.y) * tile_width / f32(tile.columns),
-					width = src_width,
-					height = src_height
-				}
-				tile_dst := rl.Rectangle {
-					x = 0,
-					y = 0,
-					width = 0.5*src_width,
-					height = 0.5*src_height
-				}
-				rl.DrawTexturePro(tile.texture, tile_src, tile_dst, 0, 0, rl.WHITE)
+		for i in 0..<len(tiles) {
+			for j in 0..<len(tiles[i]) {
+				drawTile(i, j)
 			}
 		}
 
