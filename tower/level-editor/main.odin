@@ -43,8 +43,8 @@ drawTile :: proc(x: int, y: int) {
 	tile_x: int
 	tile_y: int
 	if cell.dirMap == 0b1111 {
-		tile_x = 3
-		tile_y = 3
+		tile_x = 1
+		tile_y = 1
 	} else if cell.dirMap == 0b0001 {
 		tile_x = 3
 		tile_y = 0
@@ -52,7 +52,7 @@ drawTile :: proc(x: int, y: int) {
 		tile_x = 0
 		tile_y = 3
 	} else if cell.dirMap == 0b0011 {
-		tile_x = 2
+		tile_x = 0
 		tile_y = 0
 	} else if cell.dirMap == 0b0100 {
 		tile_x = 3
@@ -60,26 +60,41 @@ drawTile :: proc(x: int, y: int) {
 	} else if cell.dirMap == 0b0101 {
 		tile_x = 3
 		tile_y = 1
+	} else if cell.dirMap == 0b0110 {
+		tile_x = 0
+		tile_y = 2
+	} else if cell.dirMap == 0b0111 {
+		tile_x = 0
+		tile_y = 1
 	} else if cell.dirMap == 0b1000 {
 		tile_x = 2
 		tile_y = 3
 	} else if cell.dirMap == 0b1001 {
 		tile_x = 2
-		tile_y = 2
+		tile_y = 0
 	} else if cell.dirMap == 0b1010 {
 		tile_x = 1
 		tile_y = 3
+	} else if cell.dirMap == 0b1011 {
+		tile_x = 1
+		tile_y = 0
 	} else if cell.dirMap == 0b1100 {
 		tile_x = 2
 		tile_y = 2
-	} else {
-		tile_x = 1
+	} else if cell.dirMap == 0b1101 {
+		tile_x = 2
 		tile_y = 1
+	} else if cell.dirMap == 0b1110 {
+		tile_x = 1
+		tile_y = 2
+	} else {
+		tile_x = 3
+		tile_y = 3
 	}
 
 	tile_src := rl.Rectangle {
-		x = f32(tile_x) * (tile_height / f32(tile.rows)), 
-		y =  f32(tile_y) * tile_width / f32(tile.columns),
+		x = f32(tile.x + tile_x) * (tile_height / f32(tile.rows)), 
+		y =  f32(tile.y + tile_y) * tile_width / f32(tile.columns),
 		width = src_width,
 		height = src_height
 	}
@@ -106,19 +121,28 @@ checkNeighbour :: proc(x: int, y: int, tile: ^Tile) -> bool {
 	return tile == cell.tile
 }
 
+updateNeighbour :: proc(x: int, y: int, dirMap: u8) {
+	tiles[x][y].dirMap ~= dirMap
+	
+}
+
 addTile :: proc(x: int, y: int, tile: ^Tile) {
 	dirMap: u8 = 0;
 	if checkNeighbour(x-1, y, tile) {
 		dirMap ~= 0b1000
+		updateNeighbour(x-1, y, 0b0010)
 	}
 	if checkNeighbour(x, y-1, tile) {
 		dirMap ~= 0b0100
+		updateNeighbour(x, y-1, 0b0001)
 	}
 	if checkNeighbour(x+1, y, tile) {
 		dirMap ~= 0b0010
+		updateNeighbour(x+1, y, 0b1000)
 	}
 	if checkNeighbour(x, y+1, tile) {
 		dirMap ~= 0b0001
+		updateNeighbour(x, y+1, 0b0100)
 	}
 
 	tiles[x][y] = Cell { 
@@ -133,13 +157,21 @@ main :: proc() {
 	defer rl.CloseWindow()
 
 	ground_texture := rl.LoadTexture("assets/ground.png")
-	tile := Tile {
+	grass := Tile {
 		texture = ground_texture,
 		rows = 4,
 		columns = 10,
-		x = 1,
-		y = 1,
+		x = 0,
+		y = 0,
 	}
+	sand := Tile {
+		texture = ground_texture,
+		rows = 4,
+		columns = 10,
+		x = 5,
+		y = 0,
+	}
+	tile := grass
 	addTile(5, 5, &tile)
 	addTile(5, 6, &tile)
 	addTile(6, 5, &tile)
@@ -166,6 +198,8 @@ main :: proc() {
 	addTile(10, 7, &tile)
 	addTile(10, 8, &tile)
 	addTile(10, 9, &tile)
+
+	addTile(1, 1, &tile)
 
 	for !rl.WindowShouldClose() {
 		dt := rl.GetFrameTime()
