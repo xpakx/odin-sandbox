@@ -198,6 +198,14 @@ main :: proc() {
 				addTile(x, y, &tile, &layers[current_layer])
 			}
 		}
+		if rl.IsKeyPressed(.UP) {
+			current_layer += 1
+			if current_layer >= len(layers) {
+				append(&layers, Layer {} )
+			}
+		} else if rl.IsKeyPressed(.DOWN) {
+			current_layer = math.min(0, current_layer - 1)
+		} 
 
 		for layer in layers {
 			for i in 0..<len(layer.cells) {
