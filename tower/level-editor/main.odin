@@ -157,6 +157,36 @@ addTile :: proc(x: int, y: int, tile: ^Tile, layer: ^Layer) {
 	}
 }
 
+deleteTile :: proc(x: int, y: int, layer: ^Layer) {
+	tile := layer.cells[x][y].tile
+	dirMap: u8 = 0;
+	if checkNeighbour(x-1, y, tile, layer) {
+		dirMap ~= 0b1000
+		updateNeighbour(x-1, y, 0b0010, layer)
+	}
+	if checkNeighbour(x, y-1, tile, layer) {
+		dirMap ~= 0b0100
+		updateNeighbour(x, y-1, 0b0001, layer)
+	}
+	if checkNeighbour(x+1, y, tile, layer) {
+		dirMap ~= 0b0010
+		updateNeighbour(x+1, y, 0b1000, layer)
+	}
+	if checkNeighbour(x, y+1, tile, layer) {
+		dirMap ~= 0b0001
+		updateNeighbour(x, y+1, 0b0100, layer)
+	}
+
+	layer.cells[x][y].tile = nil
+	layer.cells[x][y].dirMap = dirMap
+}
+
+TileType :: enum {
+	Grass,
+	Sand,
+}
+
+
 main :: proc() {
 	rl.SetConfigFlags({.VSYNC_HINT})
 	rl.InitWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "Tower")
@@ -180,7 +210,7 @@ main :: proc() {
 		x = 5,
 		y = 0,
 	}
-	tile := grass
+	tile: TileType = .Grass
 
 	for !rl.WindowShouldClose() {
 		dt := rl.GetFrameTime()
@@ -190,12 +220,22 @@ main :: proc() {
 
 		mouse := rl.GetMousePosition()
 		if (rl.IsMouseButtonPressed(.LEFT)) {
-			fmt.println(mouse)
 			x := int(math.floor(mouse.x/CELL_SIZE))
 			y := int(math.floor(mouse.y/CELL_SIZE))
-			fmt.printfln("[%d, %d]", x, y)
-			if !checkNeighbour(x, y, &tile, &layers[current_layer]) {
-				addTile(x, y, &tile, &layers[current_layer])
+			current_tile: ^Tile
+			switch tile {
+				case .Grass: current_tile = &grass
+				case .Sand: current_tile = &sand
+			}
+			if !checkNeighbour(x, y, current_tile, &layers[current_layer]) {
+				addTile(x, y, current_tile, &layers[current_layer])
+			}
+		}
+		if (rl.IsMouseButtonPressed(.RIGHT)) {
+			x := int(math.floor(mouse.x/CELL_SIZE))
+			y := int(math.floor(mouse.y/CELL_SIZE))
+			if !checkNeighbour(x, y, nil, &layers[current_layer]) {
+				deleteTile(x, y, &layers[current_layer])
 			}
 		}
 		if rl.IsKeyPressed(.UP) {
@@ -206,6 +246,12 @@ main :: proc() {
 		} else if rl.IsKeyPressed(.DOWN) {
 			current_layer = math.min(0, current_layer - 1)
 		} 
+
+		if rl.IsKeyPressed(.ONE) {
+			tile = .Grass
+		} else if rl.IsKeyPressed(.TWO) {
+			tile = .Sand
+		}
 
 		for layer in layers {
 			for i in 0..<len(layer.cells) {
