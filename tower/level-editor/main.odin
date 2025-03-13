@@ -113,40 +113,60 @@ drawTile :: proc(x: int, y: int, layer: Layer) {
 	rl.DrawTexturePro(tile.texture, tile_src, tile_dst, 0, 0, rl.WHITE)
 }
 
-checkNeighbour :: proc(x: int, y: int, tile: ^Tile, layer: ^Layer) -> bool {
+hasTile :: proc(x: int, y: int, tile: ^Tile, layer: ^Layer) -> bool {
+	if !onMap(x, y, layer) {
+		return false
+	}
+	cell := layer.cells[x][y]
+	return tile == cell.tile
+}
+
+
+isEmpty :: proc(x: int, y: int, layer: ^Layer) -> bool {
+	if !onMap(x, y, layer) {
+		return false
+	}
+	cell := layer.cells[x][y]
+	return nil == cell.tile
+}
+
+onMap :: proc(x: int, y: int, layer: ^Layer) -> bool {
 	if x < 0 || x >= len(layer.cells) {
 		return false
 	}
 	if y < 0 || y >= len(layer.cells[x]) {
 		return false
 	}
-	cell := layer.cells[x][y]
-	if cell.tile == nil {
-		return false
-	}
-	return tile == cell.tile
+	return true
 }
 
 updateNeighbour :: proc(x: int, y: int, dirMap: u8, layer: ^Layer) {
+	if !onMap(x, y, layer) {
+		return
+	}
 	layer.cells[x][y].dirMap ~= dirMap
 	
 }
 
 addTile :: proc(x: int, y: int, tile: ^Tile, layer: ^Layer) {
 	dirMap: u8 = 0;
-	if checkNeighbour(x-1, y, tile, layer) {
+	if layer.cells[x][y].tile != nil {
+		deleteTile(x, y, layer)
+	}
+
+	if hasTile(x-1, y, tile, layer) {
 		dirMap ~= 0b1000
 		updateNeighbour(x-1, y, 0b0010, layer)
 	}
-	if checkNeighbour(x, y-1, tile, layer) {
+	if hasTile(x, y-1, tile, layer) {
 		dirMap ~= 0b0100
 		updateNeighbour(x, y-1, 0b0001, layer)
 	}
-	if checkNeighbour(x+1, y, tile, layer) {
+	if hasTile(x+1, y, tile, layer) {
 		dirMap ~= 0b0010
 		updateNeighbour(x+1, y, 0b1000, layer)
 	}
-	if checkNeighbour(x, y+1, tile, layer) {
+	if hasTile(x, y+1, tile, layer) {
 		dirMap ~= 0b0001
 		updateNeighbour(x, y+1, 0b0100, layer)
 	}
@@ -160,25 +180,21 @@ addTile :: proc(x: int, y: int, tile: ^Tile, layer: ^Layer) {
 deleteTile :: proc(x: int, y: int, layer: ^Layer) {
 	tile := layer.cells[x][y].tile
 	dirMap: u8 = 0;
-	if checkNeighbour(x-1, y, tile, layer) {
-		dirMap ~= 0b1000
+	if hasTile(x-1, y, tile, layer) {
 		updateNeighbour(x-1, y, 0b0010, layer)
 	}
-	if checkNeighbour(x, y-1, tile, layer) {
-		dirMap ~= 0b0100
+	if hasTile(x, y-1, tile, layer) {
 		updateNeighbour(x, y-1, 0b0001, layer)
 	}
-	if checkNeighbour(x+1, y, tile, layer) {
-		dirMap ~= 0b0010
+	if hasTile(x+1, y, tile, layer) {
 		updateNeighbour(x+1, y, 0b1000, layer)
 	}
-	if checkNeighbour(x, y+1, tile, layer) {
-		dirMap ~= 0b0001
+	if hasTile(x, y+1, tile, layer) {
 		updateNeighbour(x, y+1, 0b0100, layer)
 	}
 
 	layer.cells[x][y].tile = nil
-	layer.cells[x][y].dirMap = dirMap
+	layer.cells[x][y].dirMap = 0b0000
 }
 
 TileType :: enum {
@@ -227,14 +243,14 @@ main :: proc() {
 				case .Grass: current_tile = &grass
 				case .Sand: current_tile = &sand
 			}
-			if !checkNeighbour(x, y, current_tile, &layers[current_layer]) {
+			if !hasTile(x, y, current_tile, &layers[current_layer]) {
 				addTile(x, y, current_tile, &layers[current_layer])
 			}
 		}
 		if (rl.IsMouseButtonPressed(.RIGHT)) {
 			x := int(math.floor(mouse.x/CELL_SIZE))
 			y := int(math.floor(mouse.y/CELL_SIZE))
-			if !checkNeighbour(x, y, nil, &layers[current_layer]) {
+			if !hasTile(x, y, nil, &layers[current_layer]) {
 				deleteTile(x, y, &layers[current_layer])
 			}
 		}
