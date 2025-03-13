@@ -1,3 +1,4 @@
+#+feature dynamic-literals
 package tower
 
 import "core:fmt"
@@ -26,10 +27,15 @@ Cell :: struct {
 	dirMap: u8,
 }
 
-tiles: [GRID_WIDTH][GRID_HEIGHT]Cell
+Layer :: struct {
+	cells: [GRID_WIDTH][GRID_HEIGHT]Cell
+}
 
-drawTile :: proc(x: int, y: int) {
-	cell := tiles[x][y]
+layers: [dynamic]Layer
+current_layer: int
+
+drawTile :: proc(x: int, y: int, layer: Layer) {
+	cell := layer.cells[x][y]
 	if cell.tile == nil {
 		return
 	}
@@ -107,45 +113,45 @@ drawTile :: proc(x: int, y: int) {
 	rl.DrawTexturePro(tile.texture, tile_src, tile_dst, 0, 0, rl.WHITE)
 }
 
-checkNeighbour :: proc(x: int, y: int, tile: ^Tile) -> bool {
-	if x < 0 || x >= len(tiles) {
+checkNeighbour :: proc(x: int, y: int, tile: ^Tile, layer: ^Layer) -> bool {
+	if x < 0 || x >= len(layer.cells) {
 		return false
 	}
-	if y < 0 || y >= len(tiles[x]) {
+	if y < 0 || y >= len(layer.cells[x]) {
 		return false
 	}
-	cell := tiles[x][y]
+	cell := layer.cells[x][y]
 	if cell.tile == nil {
 		return false
 	}
 	return tile == cell.tile
 }
 
-updateNeighbour :: proc(x: int, y: int, dirMap: u8) {
-	tiles[x][y].dirMap ~= dirMap
+updateNeighbour :: proc(x: int, y: int, dirMap: u8, layer: ^Layer) {
+	layer.cells[x][y].dirMap ~= dirMap
 	
 }
 
-addTile :: proc(x: int, y: int, tile: ^Tile) {
+addTile :: proc(x: int, y: int, tile: ^Tile, layer: ^Layer) {
 	dirMap: u8 = 0;
-	if checkNeighbour(x-1, y, tile) {
+	if checkNeighbour(x-1, y, tile, layer) {
 		dirMap ~= 0b1000
-		updateNeighbour(x-1, y, 0b0010)
+		updateNeighbour(x-1, y, 0b0010, layer)
 	}
-	if checkNeighbour(x, y-1, tile) {
+	if checkNeighbour(x, y-1, tile, layer) {
 		dirMap ~= 0b0100
-		updateNeighbour(x, y-1, 0b0001)
+		updateNeighbour(x, y-1, 0b0001, layer)
 	}
-	if checkNeighbour(x+1, y, tile) {
+	if checkNeighbour(x+1, y, tile, layer) {
 		dirMap ~= 0b0010
-		updateNeighbour(x+1, y, 0b1000)
+		updateNeighbour(x+1, y, 0b1000, layer)
 	}
-	if checkNeighbour(x, y+1, tile) {
+	if checkNeighbour(x, y+1, tile, layer) {
 		dirMap ~= 0b0001
-		updateNeighbour(x, y+1, 0b0100)
+		updateNeighbour(x, y+1, 0b0100, layer)
 	}
 
-	tiles[x][y] = Cell { 
+	layer.cells[x][y] = Cell { 
 		tile = tile,
 		dirMap = dirMap,
 	}
@@ -155,6 +161,9 @@ main :: proc() {
 	rl.SetConfigFlags({.VSYNC_HINT})
 	rl.InitWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "Tower")
 	defer rl.CloseWindow()
+
+	current_layer = 0
+	append(&layers, Layer {} )
 
 	ground_texture := rl.LoadTexture("assets/ground.png")
 	grass := Tile {
@@ -172,34 +181,6 @@ main :: proc() {
 		y = 0,
 	}
 	tile := grass
-	addTile(5, 5, &tile)
-	addTile(5, 6, &tile)
-	addTile(6, 5, &tile)
-	addTile(5, 4, &tile)
-	addTile(4, 5, &tile)
-
-
-	addTile(8, 5, &tile)
-	addTile(9, 5, &tile)
-	addTile(10, 5, &tile)
-
-
-	addTile(12, 5, &tile)
-	addTile(12, 6, &tile)
-	addTile(12, 7, &tile)
-
-
-	addTile(8, 7, &tile)
-	addTile(8, 8, &tile)
-	addTile(8, 9, &tile)
-	addTile(9, 7, &tile)
-	addTile(9, 8, &tile)
-	addTile(9, 9, &tile)
-	addTile(10, 7, &tile)
-	addTile(10, 8, &tile)
-	addTile(10, 9, &tile)
-
-	addTile(1, 1, &tile)
 
 	for !rl.WindowShouldClose() {
 		dt := rl.GetFrameTime()
@@ -213,14 +194,16 @@ main :: proc() {
 			x := int(math.floor(mouse.x/CELL_SIZE))
 			y := int(math.floor(mouse.y/CELL_SIZE))
 			fmt.printfln("[%d, %d]", x, y)
-			if !checkNeighbour(x, y, &tile) {
-				addTile(x, y, &tile)
+			if !checkNeighbour(x, y, &tile, &layers[current_layer]) {
+				addTile(x, y, &tile, &layers[current_layer])
 			}
 		}
 
-		for i in 0..<len(tiles) {
-			for j in 0..<len(tiles[i]) {
-				drawTile(i, j)
+		for layer in layers {
+			for i in 0..<len(layer.cells) {
+				for j in 0..<len(layer.cells[i]) {
+					drawTile(i, j, layer)
+				}
 			}
 		}
 
