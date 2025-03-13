@@ -207,6 +207,17 @@ main :: proc() {
 		rl.BeginDrawing()
 		rl.ClearBackground({55, 55, 55, 255})
 
+		mouse := rl.GetMousePosition()
+		if (rl.IsMouseButtonPressed(.LEFT)) {
+			fmt.println(mouse)
+			x := int(math.floor(mouse.x/CELL_SIZE))
+			y := int(math.floor(mouse.y/CELL_SIZE))
+			fmt.printfln("[%d, %d]", x, y)
+			if !checkNeighbour(x, y, &tile) {
+				addTile(x, y, &tile)
+			}
+		}
+
 		for i in 0..<len(tiles) {
 			for j in 0..<len(tiles[i]) {
 				drawTile(i, j)
