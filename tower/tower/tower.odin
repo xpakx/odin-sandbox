@@ -323,10 +323,10 @@ addToDrawingList :: proc(ant: ^Ant) {
 update_ant :: proc(ant: ^Ant, pheromones: ^[GRID_WIDTH][GRID_HEIGHT]PheromoneCell, dt: f32) {
 	ant.nextInRow = nil
 
-	if !ant.enemy && result != 1 {
-		addToDrawingList(ant)
-		return
-	}
+	// if !ant.enemy && result != 1 {
+		// addToDrawingList(ant)
+		// return
+	// }
 
 	if !ant.enemy {
 		updateTasks(ant, dt)
@@ -497,98 +497,124 @@ main :: proc() {
 		}
 
 		rl.BeginDrawing()
-		r = 55 + u8((BEAT_TIME - timer) * 45)
-		rl.ClearBackground({r, 55, 55, 255})
 
-
-		rect1 := rl.Rectangle{
-			5.0,
-			5.0,
-			f32(WINDOW_WIDTH) - 10.0,
-			f32(WINDOW_HEIGHT) - 10.0
-		}
-
-		rl.DrawRectangleRec(rect1, {55, 55, 55, 255})
-
+		drawBackground(timer)
 		if (DEBUG) {
-			for x in 0..<GRID_WIDTH {
-				for y in 0..<GRID_HEIGHT {
-					alpha := u8(100*(pheromones[x][y].home)/(PHEROMONE_CAPACITY))
-					rl.DrawRectangle(
-						i32(x*CELL_SIZE), i32(y*CELL_SIZE),
-						i32(CELL_SIZE), i32(CELL_SIZE),
-						rl.Color{0, 0, 255, alpha},
-					)
-				}
-			}
+			drawPheromones(&pheromones)
 		}
 
-		rect := rl.Rectangle{
-			100.0,
-			100.0,
-			16.0,
-			16.0
-		}
-
-		if result == 1 {
-			rl.DrawRectangleRec(rect, {70, 100, 70, 255})
-		} else if result == -1 {
-			rl.DrawRectangleRec(rect, {140, 70, 70, 255})
-		} else {
-			rl.DrawRectangleRec(rect, {140, 140, 140, 255})
-		}
-
-		rl.DrawCircleV(HOME_POS, HOME_RADIUS, rl.BLUE)
-		rl.DrawCircleV(FOOD_POS, food_radius, rl.GREEN)
-		rl.DrawCircleV(WOOD_POS, wood_radius, rl.BROWN)
-		rl.DrawCircleV(TOWER_SPOT, wood_radius, rl.GRAY)
-
-		// Draw ants
-		for i in 0..<len(row_list) {
-			antPtr := row_list[i]
-			for antPtr != nil {
-				ant := &antPtr^
-				animation := ant.walking_res_animation if ant.carrying_food || ant.carrying_wood else ant.walking_animation
-				if result != 1 && !ant.enemy {
-					animation = ant.idle_res_animation if ant.carrying_food || ant.carrying_wood else ant.idle_animation
-				}
-				ant.frame_timer -= dt
-				frames := animation.animation_end - animation.animation_start + 1
-				if ant.frame_timer <= 0 {
-					ant.frame_timer = FRAME_LENGTH + ant.frame_timer
-					ant.animation_frame = (ant.animation_frame + 1) % frames
-				}
-				current_frame := ant.animation_frame + animation.animation_start
-
-				worker_width := f32(animation.texture.width)
-				src_width := worker_width/f32(animation.columns)
-				if ant.dir.x < 0.0 {
-					src_width *= -1
-				}
-				worker_height := f32(animation.texture.height)
-				src_x := current_frame %% animation.rows
-				src_y := current_frame / animation.rows
-				worker_src := rl.Rectangle {
-					x = f32(src_x) * (worker_height / f32(animation.rows)), 
-					y =  f32(src_y) * worker_width / f32(animation.columns),
-					width = src_width,
-					height = worker_height / f32(animation.rows)
-				}
-				middle_x := 0.5*worker_width/(2.0*f32(animation.columns))
-				middle_y := 0.5*worker_height/(2.0*f32(animation.rows))
-				worker_dst := rl.Rectangle {
-					x = ant.pos.x - middle_x,
-					y = ant.pos.y - middle_y,
-					width = 0.5*worker_width / f32(animation.columns),
-					height = 0.5*worker_height / f32(animation.rows)
-				}
-				rl.DrawTexturePro(animation.texture, worker_src, worker_dst, 0, 0, rl.WHITE)
-				antPtr = ant.nextInRow
-			}
-			row_list[i] = nil
-		}
-
+		drawRhythmIndicator()
+		drawStructures()
+		drawAnts(&row_list, dt)
 
 		rl.EndDrawing()
 	}
+}
+
+
+drawBackground :: proc(timer: f32) {
+	r = 55 + u8((BEAT_TIME - timer) * 45)
+	rl.ClearBackground({r, 55, 55, 255})
+
+
+	rect1 := rl.Rectangle{
+		5.0,
+		5.0,
+		f32(WINDOW_WIDTH) - 10.0,
+		f32(WINDOW_HEIGHT) - 10.0
+	}
+
+	rl.DrawRectangleRec(rect1, {55, 55, 55, 255})
+}
+
+
+drawPheromones :: proc(pheromones: ^[GRID_WIDTH][GRID_HEIGHT]PheromoneCell) {
+	for x in 0..<GRID_WIDTH {
+		for y in 0..<GRID_HEIGHT {
+			alpha := u8(100*(pheromones[x][y].home)/(PHEROMONE_CAPACITY))
+			rl.DrawRectangle(
+				i32(x*CELL_SIZE), i32(y*CELL_SIZE),
+				i32(CELL_SIZE), i32(CELL_SIZE),
+				rl.Color{0, 0, 255, alpha},
+			)
+		}
+	}
+}
+
+// TODO
+drawRhythmIndicator :: proc() {
+	rect := rl.Rectangle{
+		100.0,
+		100.0,
+		16.0,
+		16.0
+	}
+
+	if result == 1 {
+		rl.DrawRectangleRec(rect, {70, 100, 70, 255})
+	} else if result == -1 {
+		rl.DrawRectangleRec(rect, {140, 70, 70, 255})
+	} else {
+		rl.DrawRectangleRec(rect, {140, 140, 140, 255})
+	}
+}
+
+// TODO
+drawStructures :: proc() {
+	rl.DrawCircleV(HOME_POS, HOME_RADIUS, rl.BLUE)
+	rl.DrawCircleV(FOOD_POS, food_radius, rl.GREEN)
+	rl.DrawCircleV(WOOD_POS, wood_radius, rl.BROWN)
+	rl.DrawCircleV(TOWER_SPOT, wood_radius, rl.GRAY)
+}
+
+drawAnts :: proc(row_list: ^[GRID_HEIGHT]^Ant, dt: f32) {
+	for i in 0..<len(row_list) {
+		antPtr := row_list[i]
+		for antPtr != nil {
+			ant := &antPtr^
+			drawAnt(antPtr, dt)
+			antPtr = ant.nextInRow
+		}
+		row_list[i] = nil
+	}
+}
+
+
+drawAnt :: proc(antPtr: ^Ant, dt: f32) {
+	ant := antPtr^
+	animation := ant.walking_res_animation if ant.carrying_food || ant.carrying_wood else ant.walking_animation
+	if result != 1 && !ant.enemy {
+		animation = ant.idle_res_animation if ant.carrying_food || ant.carrying_wood else ant.idle_animation
+	}
+	ant.frame_timer -= dt
+	frames := animation.animation_end - animation.animation_start + 1
+	if ant.frame_timer <= 0 {
+		ant.frame_timer = FRAME_LENGTH + ant.frame_timer
+		ant.animation_frame = (ant.animation_frame + 1) % frames
+	}
+	current_frame := ant.animation_frame + animation.animation_start
+
+	worker_width := f32(animation.texture.width)
+	src_width := worker_width/f32(animation.columns)
+	if ant.dir.x < 0.0 {
+		src_width *= -1
+	}
+	worker_height := f32(animation.texture.height)
+	src_x := current_frame %% animation.rows
+	src_y := current_frame / animation.rows
+	worker_src := rl.Rectangle {
+		x = f32(src_x) * (worker_height / f32(animation.rows)), 
+		y =  f32(src_y) * worker_width / f32(animation.columns),
+		width = src_width,
+		height = worker_height / f32(animation.rows)
+	}
+	middle_x := 0.5*worker_width/(2.0*f32(animation.columns))
+	middle_y := 0.5*worker_height/(2.0*f32(animation.rows))
+	worker_dst := rl.Rectangle {
+		x = ant.pos.x - middle_x,
+		y = ant.pos.y - middle_y,
+		width = 0.5*worker_width / f32(animation.columns),
+		height = 0.5*worker_height / f32(animation.rows)
+	}
+	rl.DrawTexturePro(animation.texture, worker_src, worker_dst, 0, 0, rl.WHITE)
 }
