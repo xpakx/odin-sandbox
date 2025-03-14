@@ -324,10 +324,10 @@ addToDrawingList :: proc(ant: ^Ant) {
 update_ant :: proc(ant: ^Ant, pheromones: ^PheromoneMap, dt: f32) {
 	ant.nextInRow = nil
 
-	// if !ant.enemy && result != 1 {
-		// addToDrawingList(ant)
-		// return
-	// }
+	if !ant.enemy && result != 1 {
+		addToDrawingList(ant)
+		return
+	}
 
 	if !ant.enemy {
 		updateTasks(ant, dt)
@@ -464,6 +464,10 @@ main :: proc() {
 			temp_res = res
 		}
 
+		if (DEBUG) {
+			result = 1
+		}
+
 		for &ant in ants {
 			update_ant(&ant, &pheromones, dt)
 		}
@@ -472,30 +476,7 @@ main :: proc() {
 		}
 		task_changed = false
 
-
-		decay: = DECAY_FACTOR * dt
-
-		if result == 1 { // ???? still not sure if that's an ideal solution
-			for x in 0..<GRID_WIDTH {
-				for y in 0..<GRID_HEIGHT {
-					if (pheromones[x][y].home < decay) {
-						pheromones[x][y].home = 0
-					} else {
-						pheromones[x][y].home -= decay
-					}
-					if (pheromones[x][y].food < decay) {
-						pheromones[x][y].food = 0
-					} else {
-						pheromones[x][y].food -= decay
-					}
-					if (pheromones[x][y].wood < decay) {
-						pheromones[x][y].wood = 0
-					} else {
-						pheromones[x][y].wood -= decay
-					}
-				}
-			}
-		}
+		decayPheromones(&pheromones, dt)
 
 		rl.BeginDrawing()
 
@@ -509,6 +490,33 @@ main :: proc() {
 		drawAnts(&row_list, dt)
 
 		rl.EndDrawing()
+	}
+}
+
+decayPheromones :: proc(pheromones: ^PheromoneMap, dt: f32) {
+	if result != 1 { // ???? still not sure if that's an ideal solution
+		return
+	}
+
+	decay: = DECAY_FACTOR * dt
+	for x in 0..<GRID_WIDTH {
+		for y in 0..<GRID_HEIGHT {
+			if (pheromones[x][y].home < decay) {
+				pheromones[x][y].home = 0
+			} else {
+				pheromones[x][y].home -= decay
+			}
+			if (pheromones[x][y].food < decay) {
+				pheromones[x][y].food = 0
+			} else {
+				pheromones[x][y].food -= decay
+			}
+			if (pheromones[x][y].wood < decay) {
+				pheromones[x][y].wood = 0
+			} else {
+				pheromones[x][y].wood -= decay
+			}
+		}
 	}
 }
 
