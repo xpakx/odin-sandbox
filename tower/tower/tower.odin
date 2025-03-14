@@ -25,6 +25,7 @@ sound: rl.Sound
 
 Vec2i :: [2]int
 Vec2f :: [2]f32
+PheromoneMap :: [GRID_WIDTH][GRID_HEIGHT]PheromoneCell
 
 checkCommand :: proc(args: ..u8) -> bool {
     if inputLen != len(args) {
@@ -195,7 +196,7 @@ insideGrid :: proc(x: int, y: int) -> bool {
 	return x >= 0 && x < GRID_WIDTH && y >= 0 && y < GRID_HEIGHT
 }
 
-depositPheromones :: proc(ant: ^Ant, pheromones: ^[GRID_WIDTH][GRID_HEIGHT]PheromoneCell, x: int, y: int, max_deposit: f32) {
+depositPheromones :: proc(ant: ^Ant, pheromones: ^PheromoneMap, x: int, y: int, max_deposit: f32) {
 	if !insideGrid(x, y) {
 		return
 	}
@@ -212,7 +213,7 @@ depositPheromones :: proc(ant: ^Ant, pheromones: ^[GRID_WIDTH][GRID_HEIGHT]Phero
 	}
 }
 
-getPheromoneStrength :: proc(ant: ^Ant, pheromones: ^[GRID_WIDTH][GRID_HEIGHT]PheromoneCell, cell_x: int, cell_y: int, dx: int, dy: int) -> f32 {
+getPheromoneStrength :: proc(ant: ^Ant, pheromones: ^PheromoneMap, cell_x: int, cell_y: int, dx: int, dy: int) -> f32 {
 
 	if dx == 0 && dy == 0 {
 		return 0
@@ -271,7 +272,7 @@ updateTasks :: proc(ant: ^Ant, dt: f32) {
 	}
 }
 
-updateOccupation :: proc(pheromones: ^[GRID_WIDTH][GRID_HEIGHT]PheromoneCell, x: int, y: int, value: bool) {
+updateOccupation :: proc(pheromones: ^PheromoneMap, x: int, y: int, value: bool) {
 	if (!collision_avoidance) {
 		return
 	}
@@ -280,7 +281,7 @@ updateOccupation :: proc(pheromones: ^[GRID_WIDTH][GRID_HEIGHT]PheromoneCell, x:
 	}
 }
 
-findNewDir :: proc(ant: ^Ant, pheromones: ^[GRID_WIDTH][GRID_HEIGHT]PheromoneCell, cell_x: int, cell_y: int) -> Vec2f {
+findNewDir :: proc(ant: ^Ant, pheromones: ^PheromoneMap, cell_x: int, cell_y: int) -> Vec2f {
 	max_strength: f32 = 0
 	target_cell := Vec2f{0, 0}
 	for dx in -1..=1 {
@@ -320,7 +321,7 @@ addToDrawingList :: proc(ant: ^Ant) {
 	}
 }
 
-update_ant :: proc(ant: ^Ant, pheromones: ^[GRID_WIDTH][GRID_HEIGHT]PheromoneCell, dt: f32) {
+update_ant :: proc(ant: ^Ant, pheromones: ^PheromoneMap, dt: f32) {
 	ant.nextInRow = nil
 
 	// if !ant.enemy && result != 1 {
@@ -448,7 +449,7 @@ main :: proc() {
 		}
 	}
 
-	pheromones: [GRID_WIDTH][GRID_HEIGHT]PheromoneCell
+	pheromones: PheromoneMap
 	for x in 0..<WINDOW_WIDTH/CELL_SIZE {
 		for y in 0..<WINDOW_HEIGHT/CELL_SIZE {
 			pheromones[x][y] = PheromoneCell{0, 0, 0, 0, false}
@@ -528,7 +529,7 @@ drawBackground :: proc(timer: f32) {
 }
 
 
-drawPheromones :: proc(pheromones: ^[GRID_WIDTH][GRID_HEIGHT]PheromoneCell) {
+drawPheromones :: proc(pheromones: ^PheromoneMap) {
 	for x in 0..<GRID_WIDTH {
 		for y in 0..<GRID_HEIGHT {
 			alpha := u8(100*(pheromones[x][y].home)/(PHEROMONE_CAPACITY))
