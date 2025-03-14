@@ -28,7 +28,8 @@ Cell :: struct {
 }
 
 Layer :: struct {
-	cells: [GRID_WIDTH][GRID_HEIGHT]Cell
+	cells: [GRID_WIDTH][GRID_HEIGHT]Cell,
+	elevation: [GRID_WIDTH][GRID_HEIGHT]Cell
 }
 
 layers: [dynamic]Layer
@@ -145,7 +146,6 @@ updateNeighbour :: proc(x: int, y: int, dirMap: u8, layer: ^Layer) {
 		return
 	}
 	layer.cells[x][y].dirMap ~= dirMap
-	
 }
 
 addTile :: proc(x: int, y: int, tile: ^Tile, layer: ^Layer) {
@@ -195,6 +195,37 @@ deleteTile :: proc(x: int, y: int, layer: ^Layer) {
 
 	layer.cells[x][y].tile = nil
 	layer.cells[x][y].dirMap = 0b0000
+}
+
+hasElevationTile :: proc(x: int, y: int, layer: ^Layer) -> bool {
+	if !onMap(x, y, layer) {
+		return false
+	}
+	return layer.elevation[x][y].tile != nil
+}
+
+updateElevationNeighbour :: proc(x: int, y: int, dirMap: u8, layer: ^Layer) {
+	if !onMap(x, y, layer) {
+		return
+	}
+	layer.elevation[x][y].dirMap ~= dirMap
+}
+
+addElevationTile :: proc(x: int, y: int, tile: ^Tile, layer: ^Layer) {
+	dirMap: u8 = 0;
+	if hasElevationTile(x-1, y, layer) {
+		dirMap ~= 0b1000
+		updateElevationNeighbour(x-1, y, 0b0010, layer)
+	}
+	if hasElevationTile(x+1, y, layer) {
+		dirMap ~= 0b0010
+		updateElevationNeighbour(x+1, y, 0b1000, layer)
+	}
+
+	layer.elevation[x][y] = Cell { 
+		tile = tile,
+		dirMap = dirMap,
+	}
 }
 
 TileType :: enum {
