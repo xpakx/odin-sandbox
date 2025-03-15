@@ -10,6 +10,7 @@ tower.bin: $(SRCS)
 
 clean:
 	rm tower.bin
+	rm level-editor.bin
 
 .PHONY: clean all editor
 
