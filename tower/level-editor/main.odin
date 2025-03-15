@@ -228,6 +228,49 @@ addElevationTile :: proc(x: int, y: int, tile: ^Tile, layer: ^Layer) {
 	}
 }
 
+drawElecationTile :: proc(x: int, y: int, layer: Layer) {
+	cell := layer.elevation[x][y]
+	if cell.tile == nil {
+		return
+	}
+	tile := cell.tile
+	tile_width := f32(tile.texture.width)
+	src_width := tile_width/f32(tile.columns)
+
+	tile_height := f32(tile.texture.height)
+	src_height := tile_height/f32(tile.rows)
+
+	tile_x: int
+	tile_y: int
+	if cell.dirMap == 0b0010 {
+		tile_x = 0
+		tile_y = 3
+	} else if cell.dirMap == 0b1000 {
+		tile_x = 2
+		tile_y = 3
+	} else if cell.dirMap == 0b1010 {
+		tile_x = 1
+		tile_y = 3
+	} else {
+		tile_x = 3
+		tile_y = 3
+	}
+
+	tile_src := rl.Rectangle {
+		x = f32(tile.x + tile_x) * (tile_height / f32(tile.rows)), 
+		y =  f32(tile.y + tile_y) * tile_width / f32(tile.columns),
+		width = src_width,
+		height = src_height
+	}
+	tile_dst := rl.Rectangle {
+		x = f32(x*CELL_SIZE),
+		y = f32(y*CELL_SIZE),
+		width = f32(CELL_SIZE),
+		height = f32(CELL_SIZE),
+	}
+	rl.DrawTexturePro(tile.texture, tile_src, tile_dst, 0, 0, rl.WHITE)
+}
+
 TileType :: enum {
 	Grass,
 	Sand,
