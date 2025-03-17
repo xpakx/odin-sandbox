@@ -228,7 +228,7 @@ addElevationTile :: proc(x: int, y: int, tile: ^Tile, layer: ^Layer) {
 	}
 }
 
-drawElecationTile :: proc(x: int, y: int, layer: Layer) {
+drawElevationTile :: proc(x: int, y: int, layer: Layer) {
 	cell := layer.elevation[x][y]
 	if cell.tile == nil {
 		return
@@ -286,6 +286,7 @@ main :: proc() {
 	append(&layers, Layer {} )
 
 	ground_texture := rl.LoadTexture("assets/ground.png")
+	elev_texture := rl.LoadTexture("assets/elevation.png")
 	grass := Tile {
 		texture = ground_texture,
 		rows = 4,
@@ -298,6 +299,13 @@ main :: proc() {
 		rows = 4,
 		columns = 10,
 		x = 5,
+		y = 0,
+	}
+	elev := Tile {
+		texture = elev_texture,
+		rows = 7,
+		columns = 4,
+		x = 0,
 		y = 0,
 	}
 	tile: TileType = .Grass
@@ -319,6 +327,9 @@ main :: proc() {
 			}
 			if !hasTile(x, y, current_tile, &layers[current_layer]) {
 				addTile(x, y, current_tile, &layers[current_layer])
+				if(current_layer > 0) {
+					addElevationTile(x, y+1, &elev, &layers[current_layer]);
+				}
 			}
 		}
 		if (rl.IsMouseButtonPressed(.RIGHT)) {
@@ -347,6 +358,7 @@ main :: proc() {
 			for i in 0..<len(layer.cells) {
 				for j in 0..<len(layer.cells[i]) {
 					drawTile(i, j, layer)
+					drawElevationTile(i, j, layer)
 				}
 			}
 		}
