@@ -231,6 +231,20 @@ addElevationTile :: proc(x: int, y: int, tile: ^Tile, layer: ^Layer) {
 	}
 }
 
+deleteElevationTile :: proc(x: int, y: int, layer: ^Layer) {
+	tile := layer.elevation[x][y].tile
+	dirMap: u8 = 0;
+	if hasElevationTile(x-1, y, layer) {
+		updateElevationNeighbour(x-1, y, 0b0010, layer)
+	}
+	if hasElevationTile(x+1, y, layer) {
+		updateElevationNeighbour(x+1, y, 0b1000, layer)
+	}
+
+	layer.elevation[x][y].tile = nil
+	layer.elevation[x][y].dirMap = 0b0000
+}
+
 drawElevationTile :: proc(x: int, y: int, layer: Layer) {
 	cell := layer.elevation[x][y]
 	if cell.tile == nil {
@@ -331,6 +345,7 @@ main :: proc() {
 			if !hasTile(x, y, current_tile, &layers[current_layer]) {
 				addTile(x, y, current_tile, &layers[current_layer])
 				if(current_layer > 0) {
+					deleteElevationTile(x, y, &layers[current_layer]) 
 					addElevationTile(x, y+1, &elev, &layers[current_layer]);
 				}
 			}
