@@ -212,6 +212,9 @@ updateElevationNeighbour :: proc(x: int, y: int, dirMap: u8, layer: ^Layer) {
 }
 
 addElevationTile :: proc(x: int, y: int, tile: ^Tile, layer: ^Layer) {
+	if !isEmpty(x, y, layer) {
+		return
+	}
 	dirMap: u8 = 0;
 	if hasElevationTile(x-1, y, layer) {
 		dirMap ~= 0b1000
@@ -244,16 +247,16 @@ drawElevationTile :: proc(x: int, y: int, layer: Layer) {
 	tile_y: int
 	if cell.dirMap == 0b0010 {
 		tile_x = 0
-		tile_y = 3
+		tile_y = 5
 	} else if cell.dirMap == 0b1000 {
 		tile_x = 2
-		tile_y = 3
+		tile_y = 5
 	} else if cell.dirMap == 0b1010 {
 		tile_x = 1
-		tile_y = 3
+		tile_y = 5
 	} else {
 		tile_x = 3
-		tile_y = 3
+		tile_y = 5
 	}
 
 	tile_src := rl.Rectangle {
@@ -303,7 +306,7 @@ main :: proc() {
 	}
 	elev := Tile {
 		texture = elev_texture,
-		rows = 7,
+		rows = 8,
 		columns = 4,
 		x = 0,
 		y = 0,
