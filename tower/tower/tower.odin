@@ -9,6 +9,7 @@ import "core:time"
 WINDOW_WIDTH :: 640
 WINDOW_HEIGHT :: 480
 DEBUG :: true
+RHYTHM :: false
 
 CELL_SIZE :: 8
 
@@ -324,11 +325,6 @@ addToDrawingList :: proc(ant: ^Ant) {
 update_ant :: proc(ant: ^Ant, pheromones: ^PheromoneMap, dt: f32) {
 	ant.nextInRow = nil
 
-	if !ant.enemy && result != 1 {
-		addToDrawingList(ant)
-		return
-	}
-
 	if !ant.enemy {
 		updateTasks(ant, dt)
 	}
@@ -458,18 +454,24 @@ main :: proc() {
 
 	for !rl.WindowShouldClose() {
 		dt := rl.GetFrameTime()
-		processBeat(dt)
+		when RHYTHM {
+			processBeat(dt)
+		}
 		res := checkKeyBoardInput(timer)
 		if (res != 0) {
 			temp_res = res
 		}
 
-		if (DEBUG) {
-			result = 1
-		}
-
 		for &ant in ants {
-			update_ant(&ant, &pheromones, dt)
+			when RHYTHM {
+				if result != 1 {
+					addToDrawingList(&ant)
+				} else {
+					update_ant(&ant, &pheromones, dt)
+				}
+			} else {
+				update_ant(&ant, &pheromones, dt)
+			}
 		}
 		for &ant in enemy_ants {
 			update_ant(&ant, &pheromones, dt)
@@ -485,7 +487,9 @@ main :: proc() {
 			drawPheromones(&pheromones)
 		}
 
-		drawRhythmIndicator()
+		when RHYTHM {
+			drawRhythmIndicator()
+		}
 		drawStructures()
 		drawAnts(&row_list, dt)
 
