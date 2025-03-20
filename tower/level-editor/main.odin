@@ -6,6 +6,8 @@ import rl "vendor:raylib"
 import "core:math/rand"
 import "core:math"
 import "core:time"
+import "core:os"
+import "core:strings"
 
 WINDOW_WIDTH :: 640
 WINDOW_HEIGHT :: 480
@@ -15,6 +17,7 @@ GRID_WIDTH :: WINDOW_WIDTH/CELL_SIZE
 GRID_HEIGHT :: WINDOW_HEIGHT/CELL_SIZE
 
 Tile :: struct {
+	name: string,
 	texture: rl.Texture,
 	rows: int,
 	columns: int,
@@ -305,6 +308,7 @@ main :: proc() {
 	ground_texture := rl.LoadTexture("assets/ground.png")
 	elev_texture := rl.LoadTexture("assets/elevation.png")
 	grass := Tile {
+		name = "grass",
 		texture = ground_texture,
 		rows = 4,
 		columns = 10,
@@ -312,6 +316,7 @@ main :: proc() {
 		y = 0,
 	}
 	sand := Tile {
+		name = "sand",
 		texture = ground_texture,
 		rows = 4,
 		columns = 10,
@@ -319,6 +324,7 @@ main :: proc() {
 		y = 0,
 	}
 	elev := Tile {
+		name = "elevation",
 		texture = elev_texture,
 		rows = 8,
 		columns = 4,
@@ -372,6 +378,11 @@ main :: proc() {
 			tile = .Sand
 		}
 
+		if rl.IsKeyPressed(.S) {
+			mapData := prepareMap(&layers)
+			saveMap("001.map", mapData)
+		}
+
 		for layer in layers {
 			for i in 0..<len(layer.cells) {
 				for j in 0..<len(layer.cells[i]) {
@@ -384,4 +395,46 @@ main :: proc() {
 
 		rl.EndDrawing()
 	}
+}
+
+
+
+prepareMap :: proc(layers: ^[dynamic]Layer) -> string {
+	builder := strings.builder_make()
+	defer strings.builder_destroy(&builder)
+
+	for layer in layers {
+		strings.write_string(&builder, "[layer]\n")
+		strings.write_string(&builder, "[tiles]\n")
+		for i in 0..<len(layer.cells) {
+			for j in 0..<len(layer.cells[i]) {
+				cell := layer.cells[i][j]
+				if cell.tile != nil {
+					tile := fmt.tprintf("%d %d %s\n", i, j, cell.tile.name)
+					strings.write_string(&builder, tile)
+				}
+			}
+		}
+
+
+		strings.write_string(&builder, "[elevation]\n")
+		for i in 0..<len(layer.cells) {
+			for j in 0..<len(layer.cells[i]) {
+				cell := layer.elevation[i][j]
+				if cell.tile != nil {
+					tile := fmt.tprintf("%d %d %s\n", i, j, cell.tile.name)
+					strings.write_string(&builder, tile)
+				}
+			}
+		}
+	}
+	return strings.to_string(builder)
+}
+
+saveMap :: proc(filepath: string, data: string) {
+    data_as_bytes := transmute([]byte)(data)
+    ok := os.write_entire_file(filepath, data_as_bytes)
+    if !ok {
+        fmt.println("Error writing file")
+    }
 }
