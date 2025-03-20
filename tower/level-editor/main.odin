@@ -20,6 +20,7 @@ Vec2i :: [2]int
 
 Tile :: struct {
 	name: string,
+	short: bool,
 	texture: rl.Texture,
 	rows: int,
 	columns: int,
@@ -298,6 +299,7 @@ main :: proc() {
 		columns = 4,
 		x = 0,
 		y = 0,
+		short = true,
 	}
 	tile: TileType = .Grass
 
@@ -365,6 +367,24 @@ main :: proc() {
 	}
 }
 
+prepareTiles :: proc(builder: ^strings.Builder, cells: [GRID_WIDTH][GRID_HEIGHT]Cell) {
+	for i in 0..<len(cells) {
+		for j in 0..<len(cells[i]) {
+			cell := cells[i][j]
+			if cell.tile != nil {
+				coord: Vec2i
+				if cell.tile.short {
+					coord = toElevationTileCoord(cell)
+				} else {
+					coord = toTileCoord(cell)
+				}
+				tile := fmt.tprintf("%d %d %d %d %s\n", i, j, coord.x, coord.y, cell.tile.name)
+				strings.write_string(builder, tile)
+			}
+		}
+	}
+}
+
 
 
 prepareMap :: proc(layers: ^[dynamic]Layer) -> string {
@@ -374,29 +394,9 @@ prepareMap :: proc(layers: ^[dynamic]Layer) -> string {
 	for layer in layers {
 		strings.write_string(&builder, "[layer]\n")
 		strings.write_string(&builder, "[tiles]\n")
-		for i in 0..<len(layer.cells) {
-			for j in 0..<len(layer.cells[i]) {
-				cell := layer.cells[i][j]
-				if cell.tile != nil {
-					coord := toTileCoord(cell)
-					tile := fmt.tprintf("%d %d %d %d %s\n", i, j, coord.x, coord.y, cell.tile.name)
-					strings.write_string(&builder, tile)
-				}
-			}
-		}
-
-
+		prepareTiles(&builder, layer.cells)
 		strings.write_string(&builder, "[elevation]\n")
-		for i in 0..<len(layer.cells) {
-			for j in 0..<len(layer.cells[i]) {
-				cell := layer.elevation[i][j]
-				if cell.tile != nil {
-					coord := toElevationTileCoord(cell)
-					tile := fmt.tprintf("%d %d %d %d %s\n", i, j, coord.x, coord.y, cell.tile.name)
-					strings.write_string(&builder, tile)
-				}
-			}
-		}
+		prepareTiles(&builder, layer.elevation)
 	}
 	return strings.to_string(builder)
 }
