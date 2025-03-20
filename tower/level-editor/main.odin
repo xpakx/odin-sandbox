@@ -16,6 +16,8 @@ CELL_SIZE :: 32
 GRID_WIDTH :: WINDOW_WIDTH/CELL_SIZE
 GRID_HEIGHT :: WINDOW_HEIGHT/CELL_SIZE
 
+Vec2i :: [2]int
+
 Tile :: struct {
 	name: string,
 	texture: rl.Texture,
@@ -38,6 +40,42 @@ Layer :: struct {
 layers: [dynamic]Layer
 current_layer: int
 
+toTileCoord :: proc(cell: Cell) -> Vec2i {
+	if cell.dirMap == 0b1111 {
+		return {1, 1}
+	} else if cell.dirMap == 0b0001 {
+		return {3, 0}
+	} else if cell.dirMap == 0b0010 {
+		return {0, 3}
+	} else if cell.dirMap == 0b0011 {
+		return {0, 0}
+	} else if cell.dirMap == 0b0100 {
+		return {3, 2}
+	} else if cell.dirMap == 0b0101 {
+		return {3, 1}
+	} else if cell.dirMap == 0b0110 {
+		return {0, 2}
+	} else if cell.dirMap == 0b0111 {
+		return {0, 1}
+	} else if cell.dirMap == 0b1000 {
+		return {2, 3}
+	} else if cell.dirMap == 0b1001 {
+		return {2, 0}
+	} else if cell.dirMap == 0b1010 {
+		return {1, 3}
+	} else if cell.dirMap == 0b1011 {
+		return {1, 0}
+	} else if cell.dirMap == 0b1100 {
+		return {2, 2}
+	} else if cell.dirMap == 0b1101 {
+		return {2, 1}
+	} else if cell.dirMap == 0b1110 {
+		return {1, 2}
+	} else {
+		return {3, 3}
+	}
+}
+
 drawTile :: proc(x: int, y: int, layer: Layer) {
 	cell := layer.cells[x][y]
 	if cell.tile == nil {
@@ -50,61 +88,11 @@ drawTile :: proc(x: int, y: int, layer: Layer) {
 	tile_height := f32(tile.texture.height)
 	src_height := tile_height/f32(tile.rows)
 
-	tile_x: int
-	tile_y: int
-	if cell.dirMap == 0b1111 {
-		tile_x = 1
-		tile_y = 1
-	} else if cell.dirMap == 0b0001 {
-		tile_x = 3
-		tile_y = 0
-	} else if cell.dirMap == 0b0010 {
-		tile_x = 0
-		tile_y = 3
-	} else if cell.dirMap == 0b0011 {
-		tile_x = 0
-		tile_y = 0
-	} else if cell.dirMap == 0b0100 {
-		tile_x = 3
-		tile_y = 2
-	} else if cell.dirMap == 0b0101 {
-		tile_x = 3
-		tile_y = 1
-	} else if cell.dirMap == 0b0110 {
-		tile_x = 0
-		tile_y = 2
-	} else if cell.dirMap == 0b0111 {
-		tile_x = 0
-		tile_y = 1
-	} else if cell.dirMap == 0b1000 {
-		tile_x = 2
-		tile_y = 3
-	} else if cell.dirMap == 0b1001 {
-		tile_x = 2
-		tile_y = 0
-	} else if cell.dirMap == 0b1010 {
-		tile_x = 1
-		tile_y = 3
-	} else if cell.dirMap == 0b1011 {
-		tile_x = 1
-		tile_y = 0
-	} else if cell.dirMap == 0b1100 {
-		tile_x = 2
-		tile_y = 2
-	} else if cell.dirMap == 0b1101 {
-		tile_x = 2
-		tile_y = 1
-	} else if cell.dirMap == 0b1110 {
-		tile_x = 1
-		tile_y = 2
-	} else {
-		tile_x = 3
-		tile_y = 3
-	}
+	tileCoord := toTileCoord(cell)
 
 	tile_src := rl.Rectangle {
-		x = f32(tile.x + tile_x) * (tile_height / f32(tile.rows)), 
-		y =  f32(tile.y + tile_y) * tile_width / f32(tile.columns),
+		x = f32(tile.x + tileCoord.x) * (tile_height / f32(tile.rows)), 
+		y =  f32(tile.y + tileCoord.y) * tile_width / f32(tile.columns),
 		width = src_width,
 		height = src_height
 	}
