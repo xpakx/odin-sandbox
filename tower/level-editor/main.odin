@@ -177,31 +177,23 @@ addElevationTile :: proc(x: int, y: int, tile: ^Tile, layer: ^Layer) {
 	}
 }
 
-deleteTile :: proc(x: int, y: int, layer: ^Layer) {
-	tile := layer.cells[x][y].tile
-	processNewTileForNeighbour(x-1, y, tile, layer, 0b0010, 0)
-	processNewTileForNeighbour(x, y-1, tile, layer, 0b0001, 0)
-	processNewTileForNeighbour(x+1, y, tile, layer, 0b1000, 0)
-	processNewTileForNeighbour(x, y+1, tile, layer, 0b0100, 0)
-	layer.cells[x][y].tile = nil
-	layer.cells[x][y].dirMap = 0b0000
-}
-
-
-deleteElevationTile :: proc(x: int, y: int, layer: ^Layer) {
-	tile := layer.elevation[x][y].tile
+deleteTile :: proc(x: int, y: int, layer: ^Layer, elevation: bool = false) {
+	cell := &layer.elevation[x][y] if elevation else &layer.cells[x][y]
+	tile := cell.tile
 	processNewTileForNeighbour(x-1, y, tile, layer, 0b0010, 0)
 	processNewTileForNeighbour(x+1, y, tile, layer, 0b1000, 0)
-
-	layer.elevation[x][y].tile = nil
-	layer.elevation[x][y].dirMap = 0b0000
+	if tile != nil && !tile.short {
+		processNewTileForNeighbour(x, y-1, tile, layer, 0b0001, 0)
+		processNewTileForNeighbour(x, y+1, tile, layer, 0b0100, 0)
+	}
+	cell.tile = nil
+	cell.dirMap = 0b0000
 }
 
 TileType :: enum {
 	Grass,
 	Sand,
 }
-
 
 main :: proc() {
 	rl.SetConfigFlags({.VSYNC_HINT})
@@ -258,7 +250,7 @@ main :: proc() {
 			if !hasTile(x, y, current_tile, &layers[current_layer]) {
 				addTile(x, y, current_tile, &layers[current_layer])
 				if(current_layer > 0) {
-					deleteElevationTile(x, y, &layers[current_layer]) 
+					deleteTile(x, y, &layers[current_layer], true) 
 					addElevationTile(x, y+1, &elev, &layers[current_layer]);
 				}
 			}
