@@ -62,6 +62,15 @@ toTileCoord :: proc(cell: Cell) -> Vec2i {
 	}
 }
 
+toElevationTileCoord :: proc(cell: Cell) -> Vec2i {
+	switch cell.dirMap {
+		case 0b0010: return {0, 5}
+		case 0b1000: return {2, 5}
+		case 0b1010: return {1, 5}
+		case: return {3, 5}
+	}
+}
+
 drawTile :: proc(x: int, y: int, layer: Layer, elevation: bool = false) {
 	cell := layer.elevation[x][y] if elevation else layer.cells[x][y]
 	if cell.tile == nil {
@@ -91,11 +100,11 @@ drawTile :: proc(x: int, y: int, layer: Layer, elevation: bool = false) {
 	rl.DrawTexturePro(tile.texture, tile_src, tile_dst, 0, 0, rl.WHITE)
 }
 
-hasTile :: proc(x: int, y: int, tile: ^Tile, layer: ^Layer) -> bool {
+hasTile :: proc(x: int, y: int, tile: ^Tile, layer: ^Layer, elevation: bool = false) -> bool {
 	if !onMap(x, y, layer) {
 		return false
 	}
-	cell := layer.cells[x][y]
+	cell := layer.elevation[x][y] if elevation else layer.cells[x][y]
 	return tile == cell.tile
 }
 
@@ -118,11 +127,23 @@ onMap :: proc(x: int, y: int, layer: ^Layer) -> bool {
 	return true
 }
 
-updateNeighbour :: proc(x: int, y: int, dirMap: u8, layer: ^Layer) {
+updateNeighbour :: proc(x: int, y: int, dirMap: u8, layer: ^Layer, elevation: bool = false) {
 	if !onMap(x, y, layer) {
 		return
 	}
-	layer.cells[x][y].dirMap ~= dirMap
+	if elevation {
+		layer.elevation[x][y].dirMap ~= dirMap
+	} else {
+		layer.cells[x][y].dirMap ~= dirMap
+	}
+}
+
+processNewTileForNeighbour :: proc(x: int, y: int, tile: ^Tile, layer: ^Layer, maskNeigh: u8, maskSelf: u8) -> u8 {
+	if hasTile(x, y, tile, layer) {
+		updateNeighbour(x, y, maskNeigh, layer)
+		return maskSelf
+	}
+	return 0
 }
 
 addTile :: proc(x: int, y: int, tile: ^Tile, layer: ^Layer) {
@@ -131,22 +152,10 @@ addTile :: proc(x: int, y: int, tile: ^Tile, layer: ^Layer) {
 		deleteTile(x, y, layer)
 	}
 
-	if hasTile(x-1, y, tile, layer) {
-		dirMap ~= 0b1000
-		updateNeighbour(x-1, y, 0b0010, layer)
-	}
-	if hasTile(x, y-1, tile, layer) {
-		dirMap ~= 0b0100
-		updateNeighbour(x, y-1, 0b0001, layer)
-	}
-	if hasTile(x+1, y, tile, layer) {
-		dirMap ~= 0b0010
-		updateNeighbour(x+1, y, 0b1000, layer)
-	}
-	if hasTile(x, y+1, tile, layer) {
-		dirMap ~= 0b0001
-		updateNeighbour(x, y+1, 0b0100, layer)
-	}
+	dirMap ~= processNewTileForNeighbour(x-1, y, tile, layer, 0b0010, 0b1000)
+	dirMap ~= processNewTileForNeighbour(x, y-1, tile, layer, 0b0001, 0b0100)
+	dirMap ~= processNewTileForNeighbour(x+1, y, tile, layer, 0b1000, 0b0010)
+	dirMap ~= processNewTileForNeighbour(x, y+1, tile, layer, 0b0100, 0b0001)
 
 	layer.cells[x][y] = Cell { 
 		tile = tile,
@@ -154,53 +163,13 @@ addTile :: proc(x: int, y: int, tile: ^Tile, layer: ^Layer) {
 	}
 }
 
-deleteTile :: proc(x: int, y: int, layer: ^Layer) {
-	tile := layer.cells[x][y].tile
-	dirMap: u8 = 0;
-	if hasTile(x-1, y, tile, layer) {
-		updateNeighbour(x-1, y, 0b0010, layer)
-	}
-	if hasTile(x, y-1, tile, layer) {
-		updateNeighbour(x, y-1, 0b0001, layer)
-	}
-	if hasTile(x+1, y, tile, layer) {
-		updateNeighbour(x+1, y, 0b1000, layer)
-	}
-	if hasTile(x, y+1, tile, layer) {
-		updateNeighbour(x, y+1, 0b0100, layer)
-	}
-
-	layer.cells[x][y].tile = nil
-	layer.cells[x][y].dirMap = 0b0000
-}
-
-hasElevationTile :: proc(x: int, y: int, layer: ^Layer) -> bool {
-	if !onMap(x, y, layer) {
-		return false
-	}
-	return layer.elevation[x][y].tile != nil
-}
-
-updateElevationNeighbour :: proc(x: int, y: int, dirMap: u8, layer: ^Layer) {
-	if !onMap(x, y, layer) {
-		return
-	}
-	layer.elevation[x][y].dirMap ~= dirMap
-}
-
 addElevationTile :: proc(x: int, y: int, tile: ^Tile, layer: ^Layer) {
 	if !isEmpty(x, y, layer) {
 		return
 	}
 	dirMap: u8 = 0;
-	if hasElevationTile(x-1, y, layer) {
-		dirMap ~= 0b1000
-		updateElevationNeighbour(x-1, y, 0b0010, layer)
-	}
-	if hasElevationTile(x+1, y, layer) {
-		dirMap ~= 0b0010
-		updateElevationNeighbour(x+1, y, 0b1000, layer)
-	}
+	dirMap ~= processNewTileForNeighbour(x-1, y, tile, layer, 0b0010, 0b1000)
+	dirMap ~= processNewTileForNeighbour(x+1, y, tile, layer, 0b1000, 0b0010)
 
 	layer.elevation[x][y] = Cell { 
 		tile = tile,
@@ -208,29 +177,25 @@ addElevationTile :: proc(x: int, y: int, tile: ^Tile, layer: ^Layer) {
 	}
 }
 
+deleteTile :: proc(x: int, y: int, layer: ^Layer) {
+	tile := layer.cells[x][y].tile
+	processNewTileForNeighbour(x-1, y, tile, layer, 0b0010, 0)
+	processNewTileForNeighbour(x, y-1, tile, layer, 0b0001, 0)
+	processNewTileForNeighbour(x+1, y, tile, layer, 0b1000, 0)
+	processNewTileForNeighbour(x, y+1, tile, layer, 0b0100, 0)
+	layer.cells[x][y].tile = nil
+	layer.cells[x][y].dirMap = 0b0000
+}
+
+
 deleteElevationTile :: proc(x: int, y: int, layer: ^Layer) {
 	tile := layer.elevation[x][y].tile
-	dirMap: u8 = 0;
-	if hasElevationTile(x-1, y, layer) {
-		updateElevationNeighbour(x-1, y, 0b0010, layer)
-	}
-	if hasElevationTile(x+1, y, layer) {
-		updateElevationNeighbour(x+1, y, 0b1000, layer)
-	}
+	processNewTileForNeighbour(x-1, y, tile, layer, 0b0010, 0)
+	processNewTileForNeighbour(x+1, y, tile, layer, 0b1000, 0)
 
 	layer.elevation[x][y].tile = nil
 	layer.elevation[x][y].dirMap = 0b0000
 }
-
-toElevationTileCoord :: proc(cell: Cell) -> Vec2i {
-	switch cell.dirMap {
-		case 0b0010: return {0, 5}
-		case 0b1000: return {2, 5}
-		case 0b1010: return {1, 5}
-		case: return {3, 5}
-	}
-}
-
 
 TileType :: enum {
 	Grass,
@@ -322,7 +287,7 @@ main :: proc() {
 
 		if rl.IsKeyPressed(.S) {
 			mapData := prepareMap(&layers)
-			saveMap("001.map", mapData)
+			saveMap("assets/001.map", mapData)
 		}
 
 		for layer in layers {
