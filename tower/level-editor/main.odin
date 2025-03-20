@@ -62,8 +62,8 @@ toTileCoord :: proc(cell: Cell) -> Vec2i {
 	}
 }
 
-drawTile :: proc(x: int, y: int, layer: Layer) {
-	cell := layer.cells[x][y]
+drawTile :: proc(x: int, y: int, layer: Layer, elevation: bool = false) {
+	cell := layer.elevation[x][y] if elevation else layer.cells[x][y]
 	if cell.tile == nil {
 		return
 	}
@@ -74,8 +74,8 @@ drawTile :: proc(x: int, y: int, layer: Layer) {
 	tile_height := f32(tile.texture.height)
 	src_height := tile_height/f32(tile.rows)
 
-	tileCoord := toTileCoord(cell)
-
+	tileCoord := toElevationTileCoord(cell) if cell.tile.short else toTileCoord(cell)
+ 
 	tile_src := rl.Rectangle {
 		x = f32(tile.x + tileCoord.x) * (tile_height / f32(tile.rows)), 
 		y =  f32(tile.y + tileCoord.y) * tile_width / f32(tile.columns),
@@ -231,34 +231,6 @@ toElevationTileCoord :: proc(cell: Cell) -> Vec2i {
 	}
 }
 
-drawElevationTile :: proc(x: int, y: int, layer: Layer) {
-	cell := layer.elevation[x][y]
-	if cell.tile == nil {
-		return
-	}
-	tile := cell.tile
-	tile_width := f32(tile.texture.width)
-	src_width := tile_width/f32(tile.columns)
-
-	tile_height := f32(tile.texture.height)
-	src_height := tile_height/f32(tile.rows)
-
-	tileCoord := toElevationTileCoord(cell)
-
-	tile_src := rl.Rectangle {
-		x = f32(tile.x + tileCoord.x) * (tile_height / f32(tile.rows)), 
-		y =  f32(tile.y + tileCoord.y) * tile_width / f32(tile.columns),
-		width = src_width,
-		height = src_height
-	}
-	tile_dst := rl.Rectangle {
-		x = f32(x*CELL_SIZE),
-		y = f32(y*CELL_SIZE),
-		width = f32(CELL_SIZE),
-		height = f32(CELL_SIZE),
-	}
-	rl.DrawTexturePro(tile.texture, tile_src, tile_dst, 0, 0, rl.WHITE)
-}
 
 TileType :: enum {
 	Grass,
@@ -357,7 +329,7 @@ main :: proc() {
 			for i in 0..<len(layer.cells) {
 				for j in 0..<len(layer.cells[i]) {
 					drawTile(i, j, layer)
-					drawElevationTile(i, j, layer)
+					drawTile(i, j, layer, true)
 				}
 			}
 		}
@@ -384,8 +356,6 @@ prepareTiles :: proc(builder: ^strings.Builder, cells: [GRID_WIDTH][GRID_HEIGHT]
 		}
 	}
 }
-
-
 
 prepareMap :: proc(layers: ^[dynamic]Layer) -> string {
 	builder := strings.builder_make()
