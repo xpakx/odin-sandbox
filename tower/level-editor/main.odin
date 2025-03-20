@@ -41,38 +41,23 @@ layers: [dynamic]Layer
 current_layer: int
 
 toTileCoord :: proc(cell: Cell) -> Vec2i {
-	if cell.dirMap == 0b1111 {
-		return {1, 1}
-	} else if cell.dirMap == 0b0001 {
-		return {3, 0}
-	} else if cell.dirMap == 0b0010 {
-		return {0, 3}
-	} else if cell.dirMap == 0b0011 {
-		return {0, 0}
-	} else if cell.dirMap == 0b0100 {
-		return {3, 2}
-	} else if cell.dirMap == 0b0101 {
-		return {3, 1}
-	} else if cell.dirMap == 0b0110 {
-		return {0, 2}
-	} else if cell.dirMap == 0b0111 {
-		return {0, 1}
-	} else if cell.dirMap == 0b1000 {
-		return {2, 3}
-	} else if cell.dirMap == 0b1001 {
-		return {2, 0}
-	} else if cell.dirMap == 0b1010 {
-		return {1, 3}
-	} else if cell.dirMap == 0b1011 {
-		return {1, 0}
-	} else if cell.dirMap == 0b1100 {
-		return {2, 2}
-	} else if cell.dirMap == 0b1101 {
-		return {2, 1}
-	} else if cell.dirMap == 0b1110 {
-		return {1, 2}
-	} else {
-		return {3, 3}
+	switch cell.dirMap {
+		case 0b1111: return {1, 1}
+		case 0b0001: return {3, 0}
+		case 0b0010: return {0, 3}
+		case 0b0011: return {0, 0}
+		case 0b0100: return {3, 2}
+		case 0b0101: return {3, 1}
+		case 0b0110: return {0, 2}
+		case 0b0111: return {0, 1}
+		case 0b1000: return {2, 3}
+		case 0b1001: return {2, 0}
+		case 0b1010: return {1, 3}
+		case 0b1011: return {1, 0}
+		case 0b1100: return {2, 2}
+		case 0b1101: return {2, 1}
+		case 0b1110: return {1, 2}
+		case: return {3, 3}
 	}
 }
 
@@ -236,6 +221,15 @@ deleteElevationTile :: proc(x: int, y: int, layer: ^Layer) {
 	layer.elevation[x][y].dirMap = 0b0000
 }
 
+toElevationTileCoord :: proc(cell: Cell) -> Vec2i {
+	switch cell.dirMap {
+		case 0b0010: return {0, 5}
+		case 0b1000: return {2, 5}
+		case 0b1010: return {1, 5}
+		case: return {3, 5}
+	}
+}
+
 drawElevationTile :: proc(x: int, y: int, layer: Layer) {
 	cell := layer.elevation[x][y]
 	if cell.tile == nil {
@@ -248,25 +242,11 @@ drawElevationTile :: proc(x: int, y: int, layer: Layer) {
 	tile_height := f32(tile.texture.height)
 	src_height := tile_height/f32(tile.rows)
 
-	tile_x: int
-	tile_y: int
-	if cell.dirMap == 0b0010 {
-		tile_x = 0
-		tile_y = 5
-	} else if cell.dirMap == 0b1000 {
-		tile_x = 2
-		tile_y = 5
-	} else if cell.dirMap == 0b1010 {
-		tile_x = 1
-		tile_y = 5
-	} else {
-		tile_x = 3
-		tile_y = 5
-	}
+	tileCoord := toElevationTileCoord(cell)
 
 	tile_src := rl.Rectangle {
-		x = f32(tile.x + tile_x) * (tile_height / f32(tile.rows)), 
-		y =  f32(tile.y + tile_y) * tile_width / f32(tile.columns),
+		x = f32(tile.x + tileCoord.x) * (tile_height / f32(tile.rows)), 
+		y =  f32(tile.y + tileCoord.y) * tile_width / f32(tile.columns),
 		width = src_width,
 		height = src_height
 	}
@@ -398,7 +378,8 @@ prepareMap :: proc(layers: ^[dynamic]Layer) -> string {
 			for j in 0..<len(layer.cells[i]) {
 				cell := layer.cells[i][j]
 				if cell.tile != nil {
-					tile := fmt.tprintf("%d %d %s\n", i, j, cell.tile.name)
+					coord := toTileCoord(cell)
+					tile := fmt.tprintf("%d %d %d %d %s\n", i, j, coord.x, coord.y, cell.tile.name)
 					strings.write_string(&builder, tile)
 				}
 			}
@@ -410,7 +391,8 @@ prepareMap :: proc(layers: ^[dynamic]Layer) -> string {
 			for j in 0..<len(layer.cells[i]) {
 				cell := layer.elevation[i][j]
 				if cell.tile != nil {
-					tile := fmt.tprintf("%d %d %s\n", i, j, cell.tile.name)
+					coord := toElevationTileCoord(cell)
+					tile := fmt.tprintf("%d %d %d %d %s\n", i, j, coord.x, coord.y, cell.tile.name)
 					strings.write_string(&builder, tile)
 				}
 			}
@@ -420,9 +402,9 @@ prepareMap :: proc(layers: ^[dynamic]Layer) -> string {
 }
 
 saveMap :: proc(filepath: string, data: string) {
-    data_as_bytes := transmute([]byte)(data)
-    ok := os.write_entire_file(filepath, data_as_bytes)
-    if !ok {
-        fmt.println("Error writing file")
-    }
+	data_as_bytes := transmute([]byte)(data)
+	ok := os.write_entire_file(filepath, data_as_bytes)
+	if !ok {
+		fmt.println("Error writing file")
+	}
 }
