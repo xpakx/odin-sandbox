@@ -21,13 +21,18 @@ main :: proc() {
 	}
 
 	for !rl.WindowShouldClose() {
+		if rl.IsKeyPressed(.Q) {
+			break;
+		}
+
 		dt := rl.GetFrameTime()
 		rl.UpdateCamera(&camera, .ORBITAL)
 		rl.BeginDrawing()
 		rl.ClearBackground({55, 55, 55, 255})
 		rl.BeginMode3D(camera)
-		rl.DrawCube({0, 0, 0}, 1, 1, 1, {145, 128, 0, 255})
-		rl.DrawCubeWires({0, 0, 0}, 1, 1, 1, {0, 128, 0, 255})
+		rl.DrawCube({0, 0.5, 0}, 1, 1, 1, {145, 128, 0, 255})
+		rl.DrawCubeWires({0, 0.5, 0}, 1, 1, 1, {0, 128, 0, 255})
+		rl.DrawGrid(100, 0.5)
 		rl.EndMode3D()
 		rl.EndDrawing()
 	}
