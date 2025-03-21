@@ -282,7 +282,7 @@ main :: proc() {
 				append(&layers, Layer {} )
 			}
 		} else if rl.IsKeyPressed(.DOWN) {
-			current_layer = math.min(0, current_layer - 1)
+			current_layer = math.max(0, current_layer - 1)
 		} 
 
 		if rl.IsKeyPressed(.ONE) {
