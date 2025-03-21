@@ -302,16 +302,28 @@ prepareTiles :: proc(builder: ^strings.Builder, cells: [GRID_WIDTH][GRID_HEIGHT]
 				} else {
 					coord = toTileCoord(cell)
 				}
-				tile := fmt.tprintf("%d %d %d %d %s\n", i, j, coord.x, coord.y, cell.tile.name)
-				strings.write_string(builder, tile)
+				fmt.sbprintf(builder, "%d %d %d %d %s\n", i, j, coord.x, coord.y, cell.tile.name)
 			}
 		}
 	}
 }
 
+approxLayersSize :: proc(layers: ^[dynamic]Layer) -> int {
+	longest_tile_name := 9
+	longest_coord_index := 3
+	longest_tileset_coord_index := 3
+	max_line_len := longest_tile_name + 2*(longest_coord_index+1) + 2*(longest_tileset_coord_index+1) + 1
+	cells_in_layer := 2*GRID_WIDTH*GRID_HEIGHT
+	headers_len := 8 + 8 + 12
+	return 8 * (cells_in_layer * max_line_len * len(layers))
+}
+
 prepareMap :: proc(layers: ^[dynamic]Layer) -> string {
-	builder := strings.builder_make()
+	builder := strings.builder_make_none()
 	defer strings.builder_destroy(&builder)
+
+	layersSize := approxLayersSize(layers)
+	strings.builder_grow(&builder, layersSize)
 
 	for layer in layers {
 		strings.write_string(&builder, "[layer]\n")
@@ -324,6 +336,7 @@ prepareMap :: proc(layers: ^[dynamic]Layer) -> string {
 }
 
 saveMap :: proc(filepath: string, data: string) {
+	fmt.println(data)
 	data_as_bytes := transmute([]byte)(data)
 	ok := os.write_entire_file(filepath, data_as_bytes)
 	if !ok {
