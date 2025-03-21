@@ -8,6 +8,7 @@ import "core:math"
 import "core:time"
 import "core:os"
 import "core:strings"
+import "core:strconv"
 
 WINDOW_WIDTH :: 640
 WINDOW_HEIGHT :: 480
@@ -276,12 +277,15 @@ main :: proc() {
 			mapData := prepareMap(&layers)
 			saveMap("assets/001.map", mapData)
 		}
+		if rl.IsKeyPressed(.O) {
+			loadMap("assets/001.map", &layers, &grass, &sand, &elev, &elev2)
+		}
 
 		for layer in layers {
 			for i in 0..<len(layer.cells) {
 				for j in 0..<len(layer.cells[i]) {
-					drawTile(i, j, layer)
 					drawTile(i, j, layer, true)
+					drawTile(i, j, layer)
 				}
 			}
 		}
@@ -291,13 +295,13 @@ main :: proc() {
 	}
 }
 
-prepareTiles :: proc(builder: ^strings.Builder, cells: [GRID_WIDTH][GRID_HEIGHT]Cell) {
+prepareTiles :: proc(builder: ^strings.Builder, cells: [GRID_WIDTH][GRID_HEIGHT]Cell, elevation: bool = false) {
 	for i in 0..<len(cells) {
 		for j in 0..<len(cells[i]) {
 			cell := cells[i][j]
 			if cell.tile != nil {
 				coord: Vec2i
-				if cell.tile.short {
+				if elevation {
 					coord = toElevationTileCoord(cell)
 				} else {
 					coord = toTileCoord(cell)
@@ -330,16 +334,86 @@ prepareMap :: proc(layers: ^[dynamic]Layer) -> string {
 		strings.write_string(&builder, "[tiles]\n")
 		prepareTiles(&builder, layer.cells)
 		strings.write_string(&builder, "[elevation]\n")
-		prepareTiles(&builder, layer.elevation)
+		prepareTiles(&builder, layer.elevation, true)
 	}
 	return strings.to_string(builder)
 }
 
 saveMap :: proc(filepath: string, data: string) {
-	fmt.println(data)
 	data_as_bytes := transmute([]byte)(data)
 	ok := os.write_entire_file(filepath, data_as_bytes)
 	if !ok {
 		fmt.println("Error writing file")
 	}
+}
+
+loadMap :: proc(filepath: string, layers: ^[dynamic]Layer, grass: ^Tile, sand: ^Tile, elev: ^Tile, elev2: ^Tile) {
+	data, ok := os.read_entire_file(filepath)
+	defer delete(data)
+	if !ok {
+		return
+	}
+
+	it := string(data)
+	tileMode := true;
+	currentLayer := -1
+	for line in strings.split_lines_iterator(&it) {
+		switch line {
+		case "[layer]": 
+			append(layers, Layer {} )
+			currentLayer += 1
+		case "[tiles]": 
+			tileMode = true
+		case "[elevation]": 
+			tileMode = false
+		case: 
+			pos, name, ok := parseLine(line)
+			if !ok {
+				continue
+			}
+			tile: ^Tile
+			switch name {
+				case "grass": tile = grass
+				case "sand": tile = grass
+				case "elevation": tile = elev
+				case "elev2": tile = elev2
+			}
+			if tile == nil {
+				continue
+			}
+			addTile(pos.x, pos.y, tile, &layers[currentLayer], !tileMode)
+		}
+	}
+	fmt.println("Loading")
+}
+
+parseLine :: proc(s: string) -> (Vec2i, string, bool) {
+	ss := strings.split(s, " ")
+
+	if len(ss) != 5 {
+		return {0, 0}, "", false
+	}
+	pos := Vec2i {0, 0}
+	name := ""
+	for i in 0..<5 {
+		if i == 0 {
+			x, ok := strconv.parse_int(ss[0])
+			if !ok {
+				return pos, name, false
+			}
+			pos.x = x
+		}
+		if i == 1 {
+			y, ok := strconv.parse_int(ss[1])
+			if !ok {
+				return pos, name, false
+			}
+			pos.y = y
+		}
+		if i == 4 {
+			name = ss[i]
+		}
+	}
+
+	return pos, name, true
 }
