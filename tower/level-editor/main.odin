@@ -277,7 +277,7 @@ main :: proc() {
 				if hasTile(x, y+1, &elev, &layers[current_layer], true) {
 					deleteTile(x, y+1, &layers[current_layer], true)
 				}
-				if !hasTile(x, y-1, nil, &layers[current_layer]) {
+				if current_layer > 0 && !hasTile(x, y-1, nil, &layers[current_layer]) {
 					addTile(x, y, &elev, &layers[current_layer], true)
 				}
 			}
@@ -303,7 +303,12 @@ main :: proc() {
 		}
 		if rl.IsKeyPressed(.O) {
 			loadMap("assets/001.map", &layers, &grass, &sand, &elev, &elev2)
+			current_layer = 0
 		}
+		if rl.IsKeyPressed(.Q) {
+			break;
+		}
+
 
 		layer_num := 0
 		for layer in layers {
@@ -380,6 +385,7 @@ loadMap :: proc(filepath: string, layers: ^[dynamic]Layer, grass: ^Tile, sand: ^
 	if !ok {
 		return
 	}
+	clear(layers)
 
 	it := string(data)
 	tileMode := true;
@@ -401,7 +407,7 @@ loadMap :: proc(filepath: string, layers: ^[dynamic]Layer, grass: ^Tile, sand: ^
 			tile: ^Tile
 			switch name {
 				case "grass": tile = grass
-				case "sand": tile = grass
+				case "sand": tile = sand
 				case "elevation": tile = elev
 				case "elev2": tile = elev2
 			}
