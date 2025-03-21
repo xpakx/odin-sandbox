@@ -79,7 +79,7 @@ toElevationTileCoord :: proc(cell: Cell) -> Vec2i {
 	}
 }
 
-drawTile :: proc(x: int, y: int, layer: Layer, elevation: bool = false) {
+drawTile :: proc(x: int, y: int, layer: Layer, tint: bool, elevation: bool = false) {
 	cell := layer.elevation[x][y] if elevation else layer.cells[x][y]
 	if cell.tile == nil {
 		return
@@ -105,7 +105,8 @@ drawTile :: proc(x: int, y: int, layer: Layer, elevation: bool = false) {
 		width = f32(CELL_SIZE),
 		height = f32(CELL_SIZE),
 	}
-	rl.DrawTexturePro(tile.texture, tile_src, tile_dst, 0, 0, rl.WHITE)
+	color := rl.Color{255, 255, 255, 155} if tint else rl.WHITE
+	rl.DrawTexturePro(tile.texture, tile_src, tile_dst, 0, 0, color)
 }
 
 hasTile :: proc(x: int, y: int, tile: ^Tile, layer: ^Layer, elevation: bool = false) -> bool {
@@ -298,13 +299,16 @@ main :: proc() {
 			loadMap("assets/001.map", &layers, &grass, &sand, &elev, &elev2)
 		}
 
+		layer_num := 0
 		for layer in layers {
 			for i in 0..<len(layer.cells) {
 				for j in 0..<len(layer.cells[i]) {
-					drawTile(i, j, layer, true)
-					drawTile(i, j, layer)
+					tint := layer_num > current_layer
+					drawTile(i, j, layer, tint, elevation=true)
+					drawTile(i, j, layer, tint)
 				}
 			}
+			layer_num += 1
 		}
 
 
