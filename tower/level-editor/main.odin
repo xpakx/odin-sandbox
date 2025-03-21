@@ -64,6 +64,13 @@ toTileCoord :: proc(cell: Cell) -> Vec2i {
 }
 
 toElevationTileCoord :: proc(cell: Cell) -> Vec2i {
+	if !cell.tile.short {
+		tileCoord := toTileCoord(cell)
+		if 0b0101 & cell.dirMap == 0 {
+			tileCoord.y += 1
+		}
+		return tileCoord
+	}
 	switch cell.dirMap {
 		case 0b0010: return {0, 5}
 		case 0b1000: return {2, 5}
@@ -84,7 +91,7 @@ drawTile :: proc(x: int, y: int, layer: Layer, elevation: bool = false) {
 	tile_height := f32(tile.texture.height)
 	src_height := tile_height/f32(tile.rows)
 
-	tileCoord := toElevationTileCoord(cell) if cell.tile.short else toTileCoord(cell)
+	tileCoord := toElevationTileCoord(cell) if elevation else toTileCoord(cell)
  
 	tile_src := rl.Rectangle {
 		x = f32(tile.x + tileCoord.x) * (tile_height / f32(tile.rows)), 
@@ -148,7 +155,7 @@ processNewTileForNeighbour :: proc(x: int, y: int, tile: ^Tile, layer: ^Layer, m
 }
 
 addTile :: proc(x: int, y: int, tile: ^Tile, layer: ^Layer, elevation: bool = false) {
-	if elevation && !isEmpty(x, y, layer) {
+	if elevation && tile.short && !isEmpty(x, y, layer) {
 		return
 	}
 	cell := &layer.elevation[x][y] if elevation else &layer.cells[x][y]
@@ -226,13 +233,22 @@ main :: proc() {
 		y = 0,
 		short = true,
 	}
+	elev2 := Tile {
+		name = "elev2",
+		texture = elev_texture,
+		rows = 8,
+		columns = 4,
+		x = 0,
+		y = 0,
+		short = false,
+	}
 	tile: TileType = .Grass
 
 	for !rl.WindowShouldClose() {
 		dt := rl.GetFrameTime()
 
 		rl.BeginDrawing()
-		rl.ClearBackground({55, 55, 55, 255})
+		rl.ClearBackground({47, 171, 189, 255})
 
 		mouse := rl.GetMousePosition()
 		if (rl.IsMouseButtonPressed(.LEFT)) {
@@ -246,7 +262,7 @@ main :: proc() {
 			if !hasTile(x, y, current_tile, &layers[current_layer]) {
 				addTile(x, y, current_tile, &layers[current_layer])
 				if(current_layer > 0) {
-					deleteTile(x, y, &layers[current_layer], true) 
+					addTile(x, y, &elev2, &layers[current_layer], true)
 					addTile(x, y+1, &elev, &layers[current_layer], true);
 				}
 			}
@@ -256,6 +272,7 @@ main :: proc() {
 			y := int(math.floor(mouse.y/CELL_SIZE))
 			if !hasTile(x, y, nil, &layers[current_layer]) {
 				deleteTile(x, y, &layers[current_layer])
+				deleteTile(x, y, &layers[current_layer], true)
 			}
 		}
 		if rl.IsKeyPressed(.UP) {
