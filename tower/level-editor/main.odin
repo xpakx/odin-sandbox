@@ -274,6 +274,12 @@ main :: proc() {
 			if !hasTile(x, y, nil, &layers[current_layer]) {
 				deleteTile(x, y, &layers[current_layer])
 				deleteTile(x, y, &layers[current_layer], true)
+				if hasTile(x, y+1, &elev, &layers[current_layer], true) {
+					deleteTile(x, y+1, &layers[current_layer], true)
+				}
+				if !hasTile(x, y-1, nil, &layers[current_layer]) {
+					addTile(x, y, &elev, &layers[current_layer], true)
+				}
 			}
 		}
 		if rl.IsKeyPressed(.UP) {
