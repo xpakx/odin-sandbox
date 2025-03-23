@@ -5,112 +5,26 @@ import rl "vendor:raylib"
 import "core:math/rand"
 import "core:math"
 import "core:time"
+import "core:os"
+import "core:strconv"
+import "core:strings"
 
 WINDOW_WIDTH :: 640
 WINDOW_HEIGHT :: 480
 DEBUG :: true
-RHYTHM :: false
 
 CELL_SIZE :: 8
+TILE_SIZE :: 32
 
 BEAT_TIME :: 1.0
 
-timer: f32
 r: u8
-result: i32
-temp_res: i32
-input: [5]u8
-inputLen: int
 collision_avoidance: bool
 sound: rl.Sound
 
 Vec2i :: [2]int
 Vec2f :: [2]f32
 PheromoneMap :: [GRID_WIDTH][GRID_HEIGHT]PheromoneCell
-
-checkCommand :: proc(args: ..u8) -> bool {
-    if inputLen != len(args) {
-        return false
-    }
-
-    for i in 0..<len(args) {
-        if input[i] != args[i] {
-            return false
-        }
-    }
-
-    return true
-}
-
-beat_played := false
-
-processBeat :: proc(dt: f32) {
-	timer -= dt
-
-	if !beat_played && timer < BEAT_TIME - 0.07 {
-		rl.PlaySound(sound)
-		beat_played = true
-	}
-	if timer > 0.0 {
-		return
-	}
-	beat_played = false
-	timer = BEAT_TIME + timer
-	result = temp_res
-	temp_res = 0
-	if (result != 1) {
-		inputLen = 0
-	}
-	if checkCommand(1, 1, 1) {
-		pawnTask = .Wood
-		task_changed = true
-	} else if checkCommand(1, 1, 2) {
-		pawnTask = .Food
-		task_changed = true
-	} else if checkCommand(1, 3, 1) {
-		pawnTask = .NormalTower
-		task_changed = true
-	} else if checkCommand(1, 3, 2) {
-		pawnTask = .ArcherTower
-		task_changed = true
-	}
-}
-
-checkKeyBoardInput :: proc(timer: f32) -> i32 {
-	action: = false
-	actionType : u8
-	if rl.IsKeyPressed(.UP) {
-		actionType = 1
-		action = true
-	} else if rl.IsKeyPressed(.DOWN) {
-		actionType = 2
-		action = true
-	} else if rl.IsKeyPressed(.LEFT) {
-		actionType = 3
-		action = true
-	} else if rl.IsKeyPressed(.RIGHT) {
-		actionType = 4
-		action = true
-	} 
-
-	if !action {
-		return 0
-	}
-
-	if temp_res != 0 {
-		return -1
-	}
-	
-	if timer >=  BEAT_TIME - 0.15 {
-		if inputLen >= 5 {
-			inputLen = 0
-		}
-		input[inputLen] = actionType
-		inputLen += 1
-		return 1
-	}
-	return -1
-}
 
 PHEROMONE_CAPACITY :: 10.0
 DECAY_FACTOR :: 0.1
@@ -379,10 +293,6 @@ main :: proc() {
 	loadTiles(&tiles)
 
 
-	timer = BEAT_TIME
-	result = 0
-	temp_res = 0
-	inputLen = 0
 	pawnTask = .Food
 
 	food_radius = 20.0
@@ -469,26 +379,13 @@ main :: proc() {
 		}
 	}
 
+	loadMap("assets/001.map", &pheromones, &tiles)
+
 	for !rl.WindowShouldClose() {
 		dt := rl.GetFrameTime()
-		when RHYTHM {
-			processBeat(dt)
-		}
-		res := checkKeyBoardInput(timer)
-		if (res != 0) {
-			temp_res = res
-		}
 
 		for &ant in ants {
-			when RHYTHM {
-				if result != 1 {
-					addToDrawingList(&ant)
-				} else {
-					update_ant(&ant, &pheromones, dt)
-				}
-			} else {
-				update_ant(&ant, &pheromones, dt)
-			}
+			update_ant(&ant, &pheromones, dt)
 		}
 		for &ant in enemy_ants {
 			update_ant(&ant, &pheromones, dt)
@@ -499,14 +396,11 @@ main :: proc() {
 
 		rl.BeginDrawing()
 
-		drawBackground(timer)
+		drawBackground()
 		if (DEBUG) {
 			drawPheromones(&pheromones)
 		}
 
-		when RHYTHM {
-			drawRhythmIndicator()
-		}
 		drawStructures()
 		drawAnts(&row_list, dt)
 
@@ -515,10 +409,6 @@ main :: proc() {
 }
 
 decayPheromones :: proc(pheromones: ^PheromoneMap, dt: f32) {
-	if result != 1 { // ???? still not sure if that's an ideal solution
-		return
-	}
-
 	decay: = DECAY_FACTOR * dt
 	for x in 0..<GRID_WIDTH {
 		for y in 0..<GRID_HEIGHT {
@@ -542,25 +432,12 @@ decayPheromones :: proc(pheromones: ^PheromoneMap, dt: f32) {
 }
 
 
-drawBackground :: proc(timer: f32) {
-	r = 55 + u8((BEAT_TIME - timer) * 45)
-	rl.ClearBackground({r, 55, 55, 255})
-
-
-	rect1 := rl.Rectangle{
-		5.0,
-		5.0,
-		f32(WINDOW_WIDTH) - 10.0,
-		f32(WINDOW_HEIGHT) - 10.0
-	}
-
-	rl.DrawRectangleRec(rect1, {55, 55, 55, 255})
+drawBackground :: proc() {
+	rl.ClearBackground({55, 55, 55, 255})
 }
 
 
 drawPheromones :: proc(pheromones: ^PheromoneMap) {
-
-
 	for x in 0..<GRID_WIDTH {
 		for y in 0..<GRID_HEIGHT {
 			drawTile(x, y, pheromones[x][y])
@@ -574,24 +451,6 @@ drawPheromones :: proc(pheromones: ^PheromoneMap) {
 
 			}
 		}
-	}
-}
-
-// TODO
-drawRhythmIndicator :: proc() {
-	rect := rl.Rectangle{
-		100.0,
-		100.0,
-		16.0,
-		16.0
-	}
-
-	if result == 1 {
-		rl.DrawRectangleRec(rect, {70, 100, 70, 255})
-	} else if result == -1 {
-		rl.DrawRectangleRec(rect, {140, 70, 70, 255})
-	} else {
-		rl.DrawRectangleRec(rect, {140, 140, 140, 255})
 	}
 }
 
@@ -615,13 +474,9 @@ drawAnts :: proc(row_list: ^[GRID_HEIGHT]^Ant, dt: f32) {
 	}
 }
 
-
 drawAnt :: proc(antPtr: ^Ant, dt: f32) {
 	ant := antPtr^
 	animation := ant.walking_res_animation if ant.carrying_food || ant.carrying_wood else ant.walking_animation
-	if result != 1 && !ant.enemy {
-		animation = ant.idle_res_animation if ant.carrying_food || ant.carrying_wood else ant.idle_animation
-	}
 	ant.frame_timer -= dt
 	frames := animation.animation_end - animation.animation_start + 1
 	if ant.frame_timer <= 0 {
@@ -715,10 +570,101 @@ drawTile :: proc(x: int, y: int, cell: PheromoneCell) {
 		height = src_height
 	}
 	tile_dst := rl.Rectangle {
-		x = f32(x*CELL_SIZE),
-		y = f32(y*CELL_SIZE),
-		width = f32(CELL_SIZE),
-		height = f32(CELL_SIZE),
+		x = f32(x*TILE_SIZE),
+		y = f32(y*TILE_SIZE),
+		width = f32(TILE_SIZE),
+		height = f32(TILE_SIZE),
 	}
 	rl.DrawTexturePro(tile.texture, tile_src, tile_dst, 0, 0, rl.WHITE)
+}
+
+loadMap :: proc(filepath: string, layers: ^PheromoneMap, tiles: ^[4]Tile) {
+	data, ok := os.read_entire_file(filepath)
+	defer delete(data)
+	if !ok {
+		return
+	}
+	// clear(layers)
+
+	it := string(data)
+	tileMode := true;
+	currentLayer := -1
+	for line in strings.split_lines_iterator(&it) {
+		switch line {
+		case "[layer]": 
+			currentLayer += 1
+			if currentLayer > 0 {
+				return // TODO
+			}
+		case "[tiles]": 
+			tileMode = true
+		case "[elevation]": 
+			tileMode = false
+		case: 
+			pos, tilePos, name, ok := parseLine(line)
+			if !ok {
+				continue
+			}
+			tile: ^Tile
+			switch name {
+				case "grass": tile = &tiles[0]
+				case "sand": tile = &tiles[1]
+				case "elevation": tile = &tiles[2]
+				case "elev2": tile = &tiles[3]
+			}
+			if tile == nil {
+				continue
+			}
+			layers[pos.x][pos.y].tile = tile
+			layers[pos.x][pos.y].tilePos = tilePos
+		}
+	}
+	fmt.println("Loading")
+}
+
+parseLine :: proc(s: string) -> (Vec2i, Vec2i, string, bool) {
+	ss := strings.split(s, " ")
+
+	if len(ss) != 5 {
+		return {0, 0}, {0, 0}, "", false
+	}
+	pos := Vec2i {0, 0}
+	tilePos := Vec2i {0, 0}
+	name := ""
+	for i in 0..<5 {
+		if i == 0 {
+			x, ok := strconv.parse_int(ss[0])
+			if !ok {
+				return pos, tilePos, name, false
+			}
+			pos.x = x
+		}
+		if i == 1 {
+			y, ok := strconv.parse_int(ss[1])
+			if !ok {
+				return pos, tilePos, name, false
+			}
+			pos.y = y
+		}
+		if i == 2 {
+			x, ok := strconv.parse_int(ss[2])
+			if !ok {
+				return pos, tilePos, name, false
+			}
+			tilePos.x = x
+		}
+		if i == 3 {
+			y, ok := strconv.parse_int(ss[3])
+			if !ok {
+				return pos, tilePos, name, false
+			}
+			tilePos.y = y
+		}
+
+		if i == 4 {
+			name = ss[i]
+		}
+	}
+
+	return pos, tilePos, name, true
 }
