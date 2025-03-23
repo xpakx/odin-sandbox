@@ -167,6 +167,18 @@ PheromoneCell :: struct {
     wood: f32,
     enemy: f32,
     occupied: bool,
+    tile: ^Tile,
+    tilePos: Vec2i,
+}
+
+Tile :: struct {
+	name: string,
+	short: bool,
+	texture: rl.Texture,
+	rows: int,
+	columns: int,
+	x: int,
+	y: int,
 }
 
 rand_direction :: proc() -> Vec2f {
@@ -362,6 +374,11 @@ main :: proc() {
 	sound = rl.LoadSound("assets/drum.wav")
 	defer rl.UnloadSound(sound)
 
+
+	tiles: [4]Tile
+	loadTiles(&tiles)
+
+
 	timer = BEAT_TIME
 	result = 0
 	temp_res = 0
@@ -448,7 +465,7 @@ main :: proc() {
 	pheromones: PheromoneMap
 	for x in 0..<WINDOW_WIDTH/CELL_SIZE {
 		for y in 0..<WINDOW_HEIGHT/CELL_SIZE {
-			pheromones[x][y] = PheromoneCell{0, 0, 0, 0, false}
+			pheromones[x][y] = PheromoneCell{0, 0, 0, 0, false, nil, {0,0}}
 		}
 	}
 
@@ -542,14 +559,20 @@ drawBackground :: proc(timer: f32) {
 
 
 drawPheromones :: proc(pheromones: ^PheromoneMap) {
+
+
 	for x in 0..<GRID_WIDTH {
 		for y in 0..<GRID_HEIGHT {
-			alpha := u8(100*(pheromones[x][y].home)/(PHEROMONE_CAPACITY))
-			rl.DrawRectangle(
-				i32(x*CELL_SIZE), i32(y*CELL_SIZE),
-				i32(CELL_SIZE), i32(CELL_SIZE),
-				rl.Color{0, 0, 255, alpha},
-			)
+			drawTile(x, y, pheromones[x][y])
+			if (DEBUG) {
+				alpha := u8(100*(pheromones[x][y].home)/(PHEROMONE_CAPACITY))
+				rl.DrawRectangle(
+					i32(x*CELL_SIZE), i32(y*CELL_SIZE),
+					i32(CELL_SIZE), i32(CELL_SIZE),
+					rl.Color{0, 0, 255, alpha},
+				)
+
+			}
 		}
 	}
 }
@@ -630,4 +653,72 @@ drawAnt :: proc(antPtr: ^Ant, dt: f32) {
 		height = 0.5*worker_height / f32(animation.rows)
 	}
 	rl.DrawTexturePro(animation.texture, worker_src, worker_dst, 0, 0, rl.WHITE)
+}
+
+loadTiles :: proc(tiles: ^[4]Tile) {
+	ground_texture := rl.LoadTexture("assets/ground.png")
+	elev_texture := rl.LoadTexture("assets/elevation.png")
+	tiles[0] = Tile {
+		name = "grass",
+		texture = ground_texture,
+		rows = 4,
+		columns = 10,
+		x = 0,
+		y = 0,
+	}
+	tiles[1] = Tile {
+		name = "sand",
+		texture = ground_texture,
+		rows = 4,
+		columns = 10,
+		x = 5,
+		y = 0,
+	}
+	tiles[2] = Tile {
+		name = "elevation",
+		texture = elev_texture,
+		rows = 8,
+		columns = 4,
+		x = 0,
+		y = 0,
+		short = true,
+	}
+	tiles[3] = Tile {
+		name = "elev2",
+		texture = elev_texture,
+		rows = 8,
+		columns = 4,
+		x = 0,
+		y = 0,
+		short = false,
+	}
+}
+
+
+drawTile :: proc(x: int, y: int, cell: PheromoneCell) {
+	if cell.tile == nil {
+		return
+	}
+	tile := cell.tile
+	tile_width := f32(tile.texture.width)
+	src_width := tile_width/f32(tile.columns)
+
+	tile_height := f32(tile.texture.height)
+	src_height := tile_height/f32(tile.rows)
+
+	tileCoord := cell.tilePos
+ 
+	tile_src := rl.Rectangle {
+		x = f32(tile.x + tileCoord.x) * (tile_height / f32(tile.rows)), 
+		y =  f32(tile.y + tileCoord.y) * tile_width / f32(tile.columns),
+		width = src_width,
+		height = src_height
+	}
+	tile_dst := rl.Rectangle {
+		x = f32(x*CELL_SIZE),
+		y = f32(y*CELL_SIZE),
+		width = f32(CELL_SIZE),
+		height = f32(CELL_SIZE),
+	}
+	rl.DrawTexturePro(tile.texture, tile_src, tile_dst, 0, 0, rl.WHITE)
 }
