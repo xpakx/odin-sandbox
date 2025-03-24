@@ -467,15 +467,14 @@ drawAnts :: proc(row_list: ^[GRID_HEIGHT]^Ant, dt: f32) {
 		antPtr := row_list[i]
 		for antPtr != nil {
 			ant := &antPtr^
-			drawAnt(antPtr, dt)
+			drawAnt(ant, dt)
 			antPtr = ant.nextInRow
 		}
 		row_list[i] = nil
 	}
 }
 
-drawAnt :: proc(antPtr: ^Ant, dt: f32) {
-	ant := antPtr^
+drawAnt :: proc(ant: ^Ant, dt: f32) {
 	animation := ant.walking_res_animation if ant.carrying_food || ant.carrying_wood else ant.walking_animation
 	ant.frame_timer -= dt
 	frames := animation.animation_end - animation.animation_start + 1
