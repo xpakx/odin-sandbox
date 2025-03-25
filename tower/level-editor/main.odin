@@ -17,6 +17,8 @@ CELL_SIZE :: 32
 GRID_WIDTH :: WINDOW_WIDTH/CELL_SIZE
 GRID_HEIGHT :: WINDOW_HEIGHT/CELL_SIZE
 
+FRAME_LENGTH :: 0.1
+
 Vec2i :: [2]int
 
 Tile :: struct {
@@ -245,6 +247,9 @@ main :: proc() {
 	}
 	tile: TileType = .Grass
 
+
+	frameTimer: f32 = FRAME_LENGTH
+	currFrame := 0
 	water := loadAnimation("assets/water.png")
 
 	for !rl.WindowShouldClose() {
@@ -312,7 +317,12 @@ main :: proc() {
 		}
 
 
-		drawWater(water, &layers[0])
+		frameTimer -= dt
+		if frameTimer <= 0 {
+			frameTimer = FRAME_LENGTH + frameTimer
+			currFrame = (currFrame + 1) % 8
+		}
+		drawWater(water, &layers[0], currFrame)
 
 		layer_num := 0
 		for layer in layers {
@@ -331,18 +341,18 @@ main :: proc() {
 	}
 }
 
-drawWater :: proc(water: Animation, layer: ^Layer) {
+drawWater :: proc(water: Animation, layer: ^Layer, frame: int = 0) {
 	for i in 0..<len(layer.cells) {
 		for j in 0..<len(layer.cells[i]) {
 			if !isEmpty(i, j, layer) {
 				if layer.cells[i][j].dirMap != 0b1111 {
-					middle_x := (1.0/6.0)*f32(water.texture.width)/(f32(water.columns))
-					middle_y := (1.0/6.0)*f32(water.texture.height)/(f32(water.rows))
+					middle_x := (1.0/6.0)*water.width
+					middle_y := (1.0/6.0)*water.height
 					tile_src := rl.Rectangle {
-						x = f32(0), 
+						x = f32(frame) * water.width, 
 						y =  f32(0),
-						width = f32(water.texture.width)/f32(water.columns),
-						height = f32(water.texture.height)/f32(water.rows)
+						width = water.width,
+						height = water.height
 					}
 					tile_dst := rl.Rectangle {
 						x = f32(i*CELL_SIZE) - middle_x,
@@ -488,6 +498,8 @@ Animation :: struct {
 	texture: rl.Texture,
 	rows: int,
 	columns: int,
+	width: f32,
+	height: f32,
 	animation_start: int,
 	animation_end: int,
 }
@@ -496,11 +508,15 @@ Animation :: struct {
 loadAnimation :: proc(s: cstring) -> Animation {
 	texture := rl.LoadTexture(s)
 
+	width := f32(texture.width)/8.0
+	height := f32(texture.height)/1.0
 	return Animation {
 		texture = texture,
 		rows = 1,
 		columns = 8,
 		animation_start = 0,
 		animation_end = 8,
+		width = width,
+		height = height,
 	}
 }
