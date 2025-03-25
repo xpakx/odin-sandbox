@@ -259,7 +259,7 @@ main :: proc() {
 		rl.ClearBackground({47, 171, 189, 255})
 
 		mouse := rl.GetMousePosition()
-		if (rl.IsMouseButtonPressed(.LEFT)) {
+		if (rl.IsMouseButtonDown(.LEFT)) {
 			x := int(math.floor(mouse.x/CELL_SIZE))
 			y := int(math.floor(mouse.y/CELL_SIZE))
 			current_tile: ^Tile
@@ -275,7 +275,7 @@ main :: proc() {
 				}
 			}
 		}
-		if (rl.IsMouseButtonPressed(.RIGHT)) {
+		if (rl.IsMouseButtonDown(.RIGHT)) {
 			x := int(math.floor(mouse.x/CELL_SIZE))
 			y := int(math.floor(mouse.y/CELL_SIZE))
 			if !hasTile(x, y, nil, &layers[current_layer]) {
