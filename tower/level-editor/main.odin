@@ -312,31 +312,12 @@ main :: proc() {
 		}
 
 
+		drawWater(water, &layers[0])
+
 		layer_num := 0
-		for &layer in layers {
+		for layer in layers {
 			for i in 0..<len(layer.cells) {
 				for j in 0..<len(layer.cells[i]) {
-					if layer_num == 0 && !isEmpty(i, j, &layer) {
-						if layer.cells[i][j].dirMap != 0b1111 {
-							middle_x := 0.1655*f32(water.texture.width)/(f32(water.columns))
-							middle_y := 0.1655*f32(water.texture.height)/(f32(water.rows))
-							tile_src := rl.Rectangle {
-								x = f32(0), 
-								y =  f32(0),
-								width = f32(water.texture.width)/f32(water.columns),
-								height = f32(water.texture.height)/f32(water.rows)
-							}
-							tile_dst := rl.Rectangle {
-								x = f32(i*CELL_SIZE) - middle_x,
-								y = f32(j*CELL_SIZE) - middle_y,
-								width = f32(CELL_SIZE)*3.0,
-								height = f32(CELL_SIZE)*3.0,
-							}
-							rl.DrawTexturePro(water.texture, tile_src, tile_dst, 0, 0, rl.WHITE)
-
-						}
-					}
-
 					tint := layer_num > current_layer
 					drawTile(i, j, layer, tint, elevation=true)
 					drawTile(i, j, layer, tint)
@@ -347,6 +328,34 @@ main :: proc() {
 
 
 		rl.EndDrawing()
+	}
+}
+
+drawWater :: proc(water: Animation, layer: ^Layer) {
+	for i in 0..<len(layer.cells) {
+		for j in 0..<len(layer.cells[i]) {
+			if !isEmpty(i, j, layer) {
+				if layer.cells[i][j].dirMap != 0b1111 {
+					middle_x := (1.0/6.0)*f32(water.texture.width)/(f32(water.columns))
+					middle_y := (1.0/6.0)*f32(water.texture.height)/(f32(water.rows))
+					tile_src := rl.Rectangle {
+						x = f32(0), 
+						y =  f32(0),
+						width = f32(water.texture.width)/f32(water.columns),
+						height = f32(water.texture.height)/f32(water.rows)
+					}
+					tile_dst := rl.Rectangle {
+						x = f32(i*CELL_SIZE) - middle_x,
+						y = f32(j*CELL_SIZE) - middle_y,
+						width = f32(CELL_SIZE)*3.0,
+						height = f32(CELL_SIZE)*3.0,
+					}
+					rl.DrawTexturePro(water.texture, tile_src, tile_dst, 0, 0, rl.WHITE)
+
+				}
+			}
+
+		}
 	}
 }
 
