@@ -250,7 +250,7 @@ main :: proc() {
 
 	frameTimer: f32 = FRAME_LENGTH
 	currFrame := 0
-	water := loadAnimation("assets/water.png")
+	water := loadAnimation("assets/water.png", 1, 8)
 
 	for !rl.WindowShouldClose() {
 		dt := rl.GetFrameTime()
@@ -505,15 +505,15 @@ Animation :: struct {
 }
 
 
-loadAnimation :: proc(s: cstring) -> Animation {
+loadAnimation :: proc(s: cstring, rows: int = 1, columns: int = 1) -> Animation {
 	texture := rl.LoadTexture(s)
 
-	width := f32(texture.width)/8.0
-	height := f32(texture.height)/1.0
+	width := f32(texture.width)/f32(columns)
+	height := f32(texture.height)/f32(rows)
 	return Animation {
 		texture = texture,
-		rows = 1,
-		columns = 8,
+		rows = rows,
+		columns = columns,
 		animation_start = 0,
 		animation_end = 8,
 		width = width,
