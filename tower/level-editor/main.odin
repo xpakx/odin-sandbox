@@ -128,6 +128,14 @@ isEmpty :: proc(x: int, y: int, layer: ^Layer) -> bool {
 	return nil == cell.tile
 }
 
+isElevated :: proc(x: int, y: int, layer: ^Layer) -> bool {
+	if !onMap(x, y, layer) {
+		return false
+	}
+	cell := layer.elevation[x][y]
+	return cell.tile != nil && cell.tile.name == "elevation"
+}
+
 onMap :: proc(x: int, y: int, layer: ^Layer) -> bool {
 	if x < 0 || x >= len(layer.cells) {
 		return false
@@ -251,6 +259,7 @@ main :: proc() {
 	frameTimer: f32 = FRAME_LENGTH
 	currFrame := 0
 	water := loadAnimation("assets/water.png", 1, 8)
+	shadow := loadAnimation("assets/shadow.png", 1, 1)
 
 	for !rl.WindowShouldClose() {
 		dt := rl.GetFrameTime()
@@ -326,6 +335,9 @@ main :: proc() {
 
 		layer_num := 0
 		for layer in layers {
+			if layer_num > 0 {
+				drawShadows(shadow, &layers[layer_num-1], &layers[layer_num])
+			}
 			for i in 0..<len(layer.cells) {
 				for j in 0..<len(layer.cells[i]) {
 					tint := layer_num > current_layer
@@ -350,6 +362,34 @@ drawWater :: proc(water: Animation, layer: ^Layer, frame: int = 0) {
 					middle_y := (1.0/6.0)*water.height
 					tile_src := rl.Rectangle {
 						x = f32(frame) * water.width, 
+						y =  f32(0),
+						width = water.width,
+						height = water.height
+					}
+					tile_dst := rl.Rectangle {
+						x = f32(i*CELL_SIZE) - middle_x,
+						y = f32(j*CELL_SIZE) - middle_y,
+						width = f32(CELL_SIZE)*3.0,
+						height = f32(CELL_SIZE)*3.0,
+					}
+					rl.DrawTexturePro(water.texture, tile_src, tile_dst, 0, 0, rl.WHITE)
+
+				}
+			}
+
+		}
+	}
+}
+
+drawShadows :: proc(water: Animation, prevLayer: ^Layer, layer: ^Layer) {
+	for i in 0..<len(layer.cells) {
+		for j in 0..<len(layer.cells[i]) {
+			if isElevated(i, j, layer) && !isElevated(i+1, j, prevLayer)  {
+				if layer.cells[i][j].dirMap != 0b1111 {
+					middle_x := (1.0/6.0)*water.width
+					middle_y := (1.0/6.0)*water.height
+					tile_src := rl.Rectangle {
+						x = f32(0) , 
 						y =  f32(0),
 						width = water.width,
 						height = water.height
