@@ -387,6 +387,9 @@ main :: proc() {
 	loadMap("assets/001.map", &layers, &tiles)
 
 	for !rl.WindowShouldClose() {
+		if rl.IsKeyPressed(.Q) {
+			break;
+		}
 		dt := rl.GetFrameTime()
 
 		for &ant in ants {
@@ -587,6 +590,16 @@ drawTile :: proc(x: int, y: int, cell: Cell) {
 		height = f32(TILE_SIZE),
 	}
 	rl.DrawTexturePro(tile.texture, tile_src, tile_dst, 0, 0, rl.WHITE)
+}
+
+clearLayers :: proc(layers: ^TileMap) {
+	for layer in 0..<5 {
+		for x in 0..<WINDOW_WIDTH/TILE_SIZE {
+			for y in 0..<WINDOW_HEIGHT/TILE_SIZE  {
+				layers[layer][x][y].tile = nil
+			}
+		}
+	}
 }
 
 loadMap :: proc(filepath: string, layers: ^TileMap, tiles: ^[4]Tile) {
