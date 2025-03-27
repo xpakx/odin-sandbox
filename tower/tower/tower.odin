@@ -25,6 +25,7 @@ sound: rl.Sound
 Vec2i :: [2]int
 Vec2f :: [2]f32
 PheromoneMap :: [GRID_WIDTH][GRID_HEIGHT]PheromoneCell
+TileMap :: [5][WINDOW_WIDTH/TILE_SIZE][WINDOW_HEIGHT/TILE_SIZE]Cell
 
 PHEROMONE_CAPACITY :: 10.0
 DECAY_FACTOR :: 0.1
@@ -81,6 +82,9 @@ PheromoneCell :: struct {
     wood: f32,
     enemy: f32,
     occupied: bool,
+}
+
+Cell :: struct {
     tile: ^Tile,
     tilePos: Vec2i,
 }
@@ -375,11 +379,12 @@ main :: proc() {
 	pheromones: PheromoneMap
 	for x in 0..<WINDOW_WIDTH/CELL_SIZE {
 		for y in 0..<WINDOW_HEIGHT/CELL_SIZE {
-			pheromones[x][y] = PheromoneCell{0, 0, 0, 0, false, nil, {0,0}}
+			pheromones[x][y] = PheromoneCell{0, 0, 0, 0, false}
 		}
 	}
 
-	loadMap("assets/001.map", &pheromones, &tiles)
+	layers: TileMap
+	loadMap("assets/001.map", &layers, &tiles)
 
 	for !rl.WindowShouldClose() {
 		dt := rl.GetFrameTime()
@@ -397,6 +402,16 @@ main :: proc() {
 		rl.BeginDrawing()
 
 		drawBackground()
+
+
+		for layer in 0..<5 {
+			for x in 0..<WINDOW_WIDTH/TILE_SIZE {
+				for y in 0..<WINDOW_HEIGHT/TILE_SIZE  {
+					drawTile(x, y, layers[layer][x][y])
+				}
+			}
+		}
+
 		if (DEBUG) {
 			drawPheromones(&pheromones)
 		}
@@ -440,16 +455,13 @@ drawBackground :: proc() {
 drawPheromones :: proc(pheromones: ^PheromoneMap) {
 	for x in 0..<GRID_WIDTH {
 		for y in 0..<GRID_HEIGHT {
-			drawTile(x, y, pheromones[x][y])
-			if (DEBUG) {
-				alpha := u8(100*(pheromones[x][y].home)/(PHEROMONE_CAPACITY))
-				rl.DrawRectangle(
-					i32(x*CELL_SIZE), i32(y*CELL_SIZE),
-					i32(CELL_SIZE), i32(CELL_SIZE),
-					rl.Color{0, 0, 255, alpha},
-				)
+			alpha := u8(100*(pheromones[x][y].home)/(PHEROMONE_CAPACITY))
+			rl.DrawRectangle(
+				i32(x*CELL_SIZE), i32(y*CELL_SIZE),
+				i32(CELL_SIZE), i32(CELL_SIZE),
+				rl.Color{0, 0, 255, alpha},
+			)
 
-			}
 		}
 	}
 }
@@ -549,7 +561,7 @@ loadTiles :: proc(tiles: ^[4]Tile) {
 }
 
 
-drawTile :: proc(x: int, y: int, cell: PheromoneCell) {
+drawTile :: proc(x: int, y: int, cell: Cell) {
 	if cell.tile == nil {
 		return
 	}
@@ -577,13 +589,13 @@ drawTile :: proc(x: int, y: int, cell: PheromoneCell) {
 	rl.DrawTexturePro(tile.texture, tile_src, tile_dst, 0, 0, rl.WHITE)
 }
 
-loadMap :: proc(filepath: string, layers: ^PheromoneMap, tiles: ^[4]Tile) {
+loadMap :: proc(filepath: string, layers: ^TileMap, tiles: ^[4]Tile) {
 	data, ok := os.read_entire_file(filepath)
 	defer delete(data)
 	if !ok {
 		return
 	}
-	// clear(layers)
+	// clearLayers(layers)
 
 	it := string(data)
 	tileMode := true;
@@ -592,9 +604,6 @@ loadMap :: proc(filepath: string, layers: ^PheromoneMap, tiles: ^[4]Tile) {
 		switch line {
 		case "[layer]": 
 			currentLayer += 1
-			if currentLayer > 0 {
-				return // TODO
-			}
 		case "[tiles]": 
 			tileMode = true
 		case "[elevation]": 
@@ -614,8 +623,8 @@ loadMap :: proc(filepath: string, layers: ^PheromoneMap, tiles: ^[4]Tile) {
 			if tile == nil {
 				continue
 			}
-			layers[pos.x][pos.y].tile = tile
-			layers[pos.x][pos.y].tilePos = tilePos
+			layers[currentLayer][pos.x][pos.y].tile = tile
+			layers[currentLayer][pos.x][pos.y].tilePos = tilePos
 		}
 	}
 	fmt.println("Loading")
