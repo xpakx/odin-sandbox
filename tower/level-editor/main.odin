@@ -36,9 +36,14 @@ Cell :: struct {
 	dirMap: u8,
 }
 
+DCell :: struct {
+	building: ^Building,
+}
+
 Layer :: struct {
 	cells: [GRID_WIDTH][GRID_HEIGHT]Cell,
-	elevation: [GRID_WIDTH][GRID_HEIGHT]Cell
+	elevation: [GRID_WIDTH][GRID_HEIGHT]Cell,
+	buildings: [GRID_WIDTH][GRID_HEIGHT]DCell,
 }
 
 layers: [dynamic]Layer
@@ -261,6 +266,9 @@ main :: proc() {
 	water := loadAnimation("assets/water.png", 1, 8)
 	shadow := loadAnimation("assets/shadow.png", 1, 1)
 
+	castle := loadBuilding("assets/castle.png", "castle")
+	layers[0].buildings[5][5] = DCell { &castle }
+
 	for !rl.WindowShouldClose() {
 		dt := rl.GetFrameTime()
 
@@ -345,6 +353,11 @@ main :: proc() {
 					drawTile(i, j, layer, tint)
 				}
 			}
+			for i in 0..<len(layer.cells) {
+				for j in 0..<len(layer.cells[i]) {
+					drawBuilding(i, j, layer)
+				}
+			}
 			layer_num += 1
 		}
 
@@ -407,6 +420,30 @@ drawShadows :: proc(water: Animation, prevLayer: ^Layer, layer: ^Layer) {
 
 		}
 	}
+}
+
+drawBuilding :: proc(i: int, j: int, layer: Layer) {
+	cell :=  layer.buildings[i][j]
+	if cell.building == nil {
+		return
+	}
+	building := cell.building
+
+	middle_x := (1.0/6.0)*building.width
+	middle_y := (1.0/6.0)*building.height
+	tile_src := rl.Rectangle {
+		x = f32(0) , 
+		y =  f32(0),
+		width = building.width,
+		height = building.height
+	}
+	tile_dst := rl.Rectangle {
+		x = f32(i*CELL_SIZE) - middle_x,
+		y = f32(j*CELL_SIZE) - middle_y,
+		width = f32(CELL_SIZE)*3.0,
+		height = f32(CELL_SIZE)*3.0,
+	}
+	rl.DrawTexturePro(building.texture, tile_src, tile_dst, 0, 0, rl.WHITE)
 }
 
 prepareTiles :: proc(builder: ^strings.Builder, cells: [GRID_WIDTH][GRID_HEIGHT]Cell, elevation: bool = false) {
@@ -533,7 +570,6 @@ parseLine :: proc(s: string) -> (Vec2i, string, bool) {
 	return pos, name, true
 }
 
-
 Animation :: struct {
 	texture: rl.Texture,
 	rows: int,
@@ -543,7 +579,6 @@ Animation :: struct {
 	animation_start: int,
 	animation_end: int,
 }
-
 
 loadAnimation :: proc(s: cstring, rows: int = 1, columns: int = 1) -> Animation {
 	texture := rl.LoadTexture(s)
@@ -558,5 +593,25 @@ loadAnimation :: proc(s: cstring, rows: int = 1, columns: int = 1) -> Animation 
 		animation_end = 8,
 		width = width,
 		height = height,
+	}
+}
+
+Building :: struct {
+	name: string,
+	texture: rl.Texture,
+	width: f32,
+	height: f32,
+}
+
+loadBuilding :: proc(s: cstring, name: string) -> Building {
+	texture := rl.LoadTexture(s)
+
+	width := f32(texture.width)
+	height := f32(texture.height)
+	return Building {
+		texture = texture,
+		width = width,
+		height = height,
+		name = name,
 	}
 }
