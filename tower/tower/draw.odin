@@ -2,7 +2,18 @@ package tower
 
 import rl "vendor:raylib"
 
-row_list: [GRID_HEIGHT]^Ant
+RowList :: [GRID_HEIGHT]^Ant
+row_list: RowList
+
+draw :: proc(pheromones: ^PheromoneMap, layers: ^TileMap, row_list: ^RowList, dt: f32) {
+	drawBackground()
+	drawTiles(layers)
+	if (DEBUG) {
+		drawPheromones(pheromones)
+	}
+	drawStructures()
+	drawAnts(row_list, dt)
+}
 
 drawBackground :: proc() {
 	rl.ClearBackground({55, 55, 55, 255})
@@ -30,7 +41,7 @@ drawStructures :: proc() {
 	rl.DrawCircleV(TOWER_SPOT, wood_radius, rl.GRAY)
 }
 
-drawAnts :: proc(row_list: ^[GRID_HEIGHT]^Ant, dt: f32) {
+drawAnts :: proc(row_list: ^RowList, dt: f32) {
 	for i in 0..<len(row_list) {
 		antPtr := row_list[i]
 		for antPtr != nil {
@@ -80,5 +91,17 @@ addToDrawingList :: proc(ant: ^Ant) {
 	} else {
 		ant.nextInRow = row_list[new_cell_y]
 		row_list[new_cell_y] = ant
+	}
+}
+
+
+drawTiles :: proc(layers: ^TileMap) {
+	for layer in 0..<5 {
+		for x in 0..<WINDOW_WIDTH/TILE_SIZE {
+			for y in 0..<WINDOW_HEIGHT/TILE_SIZE  {
+				drawTile(x, y, layers[layer][x][y], true)
+				drawTile(x, y, layers[layer][x][y])
+			}
+		}
 	}
 }

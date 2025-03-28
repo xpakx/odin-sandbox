@@ -11,10 +11,9 @@ WINDOW_HEIGHT :: 480
 DEBUG :: true
 
 CELL_SIZE :: 8
+GRID_WIDTH :: WINDOW_WIDTH/CELL_SIZE
+GRID_HEIGHT :: WINDOW_HEIGHT/CELL_SIZE
 
-BEAT_TIME :: 1.0
-
-r: u8
 collision_avoidance: bool
 sound: rl.Sound
 
@@ -37,9 +36,6 @@ rand_direction :: proc() -> Vec2f {
 	return Vec2f{math.cos(angle), math.sin(angle)}
 }
 
-GRID_WIDTH :: WINDOW_WIDTH/CELL_SIZE
-GRID_HEIGHT :: WINDOW_HEIGHT/CELL_SIZE
-
 insideGrid :: proc(x: int, y: int) -> bool {
 	return x >= 0 && x < GRID_WIDTH && y >= 0 && y < GRID_HEIGHT
 }
@@ -53,10 +49,8 @@ main :: proc() {
 	sound = rl.LoadSound("assets/drum.wav")
 	defer rl.UnloadSound(sound)
 
-
 	tiles: [4]Tile
 	loadTiles(&tiles)
-
 
 	pawnTask = .Food
 
@@ -139,26 +133,7 @@ main :: proc() {
 		decayPheromones(&pheromones, dt)
 
 		rl.BeginDrawing()
-
-		drawBackground()
-
-
-		for layer in 0..<5 {
-			for x in 0..<WINDOW_WIDTH/TILE_SIZE {
-				for y in 0..<WINDOW_HEIGHT/TILE_SIZE  {
-					drawTile(x, y, layers[layer][x][y], true)
-					drawTile(x, y, layers[layer][x][y])
-				}
-			}
-		}
-
-		if (DEBUG) {
-			drawPheromones(&pheromones)
-		}
-
-		drawStructures()
-		drawAnts(&row_list, dt)
-
+		draw(&pheromones, &layers, &row_list, dt)
 		rl.EndDrawing()
 	}
 }
