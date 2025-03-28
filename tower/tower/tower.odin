@@ -217,58 +217,25 @@ main :: proc() {
 	wood_radius = 20.0
 	collision_avoidance = true
 
-	worker_texture := rl.LoadTexture("assets/worker.png")
-	enemy_texture := rl.LoadTexture("assets/enemy_knight.png")
+	workerTileset := loadTileset("assets/worker.png", 6, 6)
+	enemyTileset := loadTileset("assets/enemy_knight.png", 8, 6)
 
-	walking_animation := Animation {
-		texture = worker_texture,
-		rows = 6,
-		columns = 6,
-		animation_start = 1 * 6,
-		animation_end = 1 * 6 + 5,
-	}
+	walkingAnimation := createAnimation(workerTileset, {1, 0}, {1, 5})
+	walkingResAnimation := createAnimation(workerTileset, {5, 0}, {5, 5})
+	idleAnimation := createAnimation(workerTileset, {0, 0}, {0, 5})
+	idleResAnimation := createAnimation(workerTileset, {4, 0}, {4, 5})
 
-	walking_res_animation := Animation {
-		texture = worker_texture,
-		rows = 6,
-		columns = 6,
-		animation_start = 5 * 6,
-		animation_end = 5 * 6 + 5,
-	}
-
-	idle_animation := Animation {
-		texture = worker_texture,
-		rows = 6,
-		columns = 6,
-		animation_start = 0 * 6,
-		animation_end = 0 * 6 + 5,
-	}
-
-	idle_res_animation := Animation {
-		texture = worker_texture,
-		rows = 6,
-		columns = 6,
-		animation_start = 4 * 6,
-		animation_end = 4 * 6 + 5,
-	}
-
-	enemy_walking_animation := Animation {
-		texture = enemy_texture,
-		rows = 8,
-		columns = 6,
-		animation_start = 1 * 6,
-		animation_end = 1 * 6 + 5,
-	}
+	enemyWalkingAnimation := createAnimation(enemyTileset, {1, 0}, {1, 5})
 
 	worker_animations := CharAnimationSet {
-		walking = walking_animation,
-		walking_res = walking_res_animation,
-		idle = idle_animation,
-		idle_res = idle_res_animation,
+		walking = walkingAnimation,
+		walking_res = walkingResAnimation,
+		idle = idleAnimation,
+		idle_res = idleResAnimation,
 	}
 
 	enemy_animations := CharAnimationSet {
-		walking = enemy_walking_animation,
+		walking = enemyWalkingAnimation,
 	}
 
 	ants: [20]Ant

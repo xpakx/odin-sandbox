@@ -16,10 +16,19 @@ CharAnimationSet :: struct {
 	walking_res: Animation,
 	idle_res: Animation,
 }
-// walking_animation: Animation,
-// walking_res_animation: Animation,
-// idle_animation: Animation,
-// idle_res_animation: Animation,
+
+createAnimation :: proc (tileset: Tileset, start: Vec2i, end: Vec2i) -> Animation {
+	startIndex := start.x * tileset.columns + start.y
+	endIndex := end.x * tileset.columns + end.y
+
+	return Animation {
+		texture = tileset.texture,
+		rows = tileset.rows,
+		columns = tileset.columns,
+		animation_start = startIndex,
+		animation_end = endIndex,
+	}
+}
 
 drawAnt :: proc(ant: ^Ant, dt: f32) {
 	animations := ant.animations
