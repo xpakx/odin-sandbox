@@ -3,6 +3,18 @@ package tower
 import rl "vendor:raylib"
 import "core:math/rand"
 
+PheromoneMap :: [GRID_WIDTH][GRID_HEIGHT]PheromoneCell
+PHEROMONE_CAPACITY :: 10.0
+DECAY_FACTOR :: 0.1
+
+PheromoneCell :: struct {
+    home: f32,
+    food: f32,
+    wood: f32,
+    enemy: f32,
+    occupied: bool,
+}
+
 getPheromoneStrength :: proc(ant: ^Ant, pheromones: ^PheromoneMap, cell_x: int, cell_y: int, dx: int, dy: int) -> f32 {
 
 	if dx == 0 && dy == 0 {
@@ -79,5 +91,40 @@ depositPheromones :: proc(ant: ^Ant, pheromones: ^PheromoneMap, x: int, y: int, 
 	if isForaging() {
 		depositResourcePheromones(ant^, cell, max_deposit)
 		return
+	}
+}
+
+updatePheromone :: proc(pher: ^f32, max_deposit: f32) {
+    pher^ = max(pher^, max_deposit)
+}
+
+depositResourcePheromones :: proc(ant: Ant, cell: ^PheromoneCell, maxDeposit: f32) {
+	if ant.carrying_food {
+		updatePheromone(&cell.food, maxDeposit)
+	} else if ant.carrying_wood {
+		updatePheromone(&cell.wood, maxDeposit)
+	}
+}
+
+decayPheromones :: proc(pheromones: ^PheromoneMap, dt: f32) {
+	decay: = DECAY_FACTOR * dt
+	for x in 0..<GRID_WIDTH {
+		for y in 0..<GRID_HEIGHT {
+			if (pheromones[x][y].home < decay) {
+				pheromones[x][y].home = 0
+			} else {
+				pheromones[x][y].home -= decay
+			}
+			if (pheromones[x][y].food < decay) {
+				pheromones[x][y].food = 0
+			} else {
+				pheromones[x][y].food -= decay
+			}
+			if (pheromones[x][y].wood < decay) {
+				pheromones[x][y].wood = 0
+			} else {
+				pheromones[x][y].wood -= decay
+			}
+		}
 	}
 }

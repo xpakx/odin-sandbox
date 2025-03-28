@@ -24,11 +24,8 @@ sound: rl.Sound
 
 Vec2i :: [2]int
 Vec2f :: [2]f32
-PheromoneMap :: [GRID_WIDTH][GRID_HEIGHT]PheromoneCell
 TileMap :: [5][WINDOW_WIDTH/TILE_SIZE][WINDOW_HEIGHT/TILE_SIZE]Cell
 
-PHEROMONE_CAPACITY :: 10.0
-DECAY_FACTOR :: 0.1
 ANT_SPEED :: 75.0
 HOME_RADIUS :: 20.0
 food_radius: f32
@@ -76,14 +73,6 @@ PawnTask :: enum {
 pawnTask: PawnTask
 task_changed: bool
 
-PheromoneCell :: struct {
-    home: f32,
-    food: f32,
-    wood: f32,
-    enemy: f32,
-    occupied: bool,
-}
-
 Cell :: struct {
     tile: ^Tile,
     tilePos: Vec2i,
@@ -114,22 +103,9 @@ isForaging :: proc() -> bool {
 	return pawnTask == .Food || pawnTask == .Wood
 }
 
-updatePheromone :: proc(pher: ^f32, max_deposit: f32) {
-    pher^ = max(pher^, max_deposit)
-}
-
-depositResourcePheromones :: proc(ant: Ant, cell: ^PheromoneCell, maxDeposit: f32) {
-	if ant.carrying_food {
-		updatePheromone(&cell.food, maxDeposit)
-	} else if ant.carrying_wood {
-		updatePheromone(&cell.wood, maxDeposit)
-	}
-}
-
 insideGrid :: proc(x: int, y: int) -> bool {
 	return x >= 0 && x < GRID_WIDTH && y >= 0 && y < GRID_HEIGHT
 }
-
 
 updateTasks :: proc(ant: ^Ant, dt: f32) {
 	ant.task_len = max(ant.task_len - dt, 0.0)
@@ -376,34 +352,9 @@ main :: proc() {
 	}
 }
 
-decayPheromones :: proc(pheromones: ^PheromoneMap, dt: f32) {
-	decay: = DECAY_FACTOR * dt
-	for x in 0..<GRID_WIDTH {
-		for y in 0..<GRID_HEIGHT {
-			if (pheromones[x][y].home < decay) {
-				pheromones[x][y].home = 0
-			} else {
-				pheromones[x][y].home -= decay
-			}
-			if (pheromones[x][y].food < decay) {
-				pheromones[x][y].food = 0
-			} else {
-				pheromones[x][y].food -= decay
-			}
-			if (pheromones[x][y].wood < decay) {
-				pheromones[x][y].wood = 0
-			} else {
-				pheromones[x][y].wood -= decay
-			}
-		}
-	}
-}
-
-
 drawBackground :: proc() {
 	rl.ClearBackground({55, 55, 55, 255})
 }
-
 
 drawPheromones :: proc(pheromones: ^PheromoneMap) {
 	for x in 0..<GRID_WIDTH {
