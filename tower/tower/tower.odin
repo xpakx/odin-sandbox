@@ -87,6 +87,8 @@ PheromoneCell :: struct {
 Cell :: struct {
     tile: ^Tile,
     tilePos: Vec2i,
+    elevTile: ^Tile,
+    elevTilePos: Vec2i,
 }
 
 Tile :: struct {
@@ -410,6 +412,7 @@ main :: proc() {
 		for layer in 0..<5 {
 			for x in 0..<WINDOW_WIDTH/TILE_SIZE {
 				for y in 0..<WINDOW_HEIGHT/TILE_SIZE  {
+					drawTile(x, y, layers[layer][x][y], true)
 					drawTile(x, y, layers[layer][x][y])
 				}
 			}
@@ -564,18 +567,18 @@ loadTiles :: proc(tiles: ^[4]Tile) {
 }
 
 
-drawTile :: proc(x: int, y: int, cell: Cell) {
-	if cell.tile == nil {
+drawTile :: proc(x: int, y: int, cell: Cell, elevation: bool = false) {
+	tile := cell.elevTile if elevation else cell.tile
+	if tile == nil {
 		return
 	}
-	tile := cell.tile
 	tile_width := f32(tile.texture.width)
 	src_width := tile_width/f32(tile.columns)
 
 	tile_height := f32(tile.texture.height)
 	src_height := tile_height/f32(tile.rows)
 
-	tileCoord := cell.tilePos
+	tileCoord := cell.elevTilePos if elevation else cell.tilePos
  
 	tile_src := rl.Rectangle {
 		x = f32(tile.x + tileCoord.x) * (tile_height / f32(tile.rows)), 
@@ -636,8 +639,13 @@ loadMap :: proc(filepath: string, layers: ^TileMap, tiles: ^[4]Tile) {
 			if tile == nil {
 				continue
 			}
-			layers[currentLayer][pos.x][pos.y].tile = tile
-			layers[currentLayer][pos.x][pos.y].tilePos = tilePos
+			if (tileMode) {
+				layers[currentLayer][pos.x][pos.y].tile = tile
+				layers[currentLayer][pos.x][pos.y].tilePos = tilePos
+			} else {
+				layers[currentLayer][pos.x][pos.y].elevTile = tile
+				layers[currentLayer][pos.x][pos.y].elevTilePos = tilePos
+			}
 		}
 	}
 	fmt.println("Loading")
