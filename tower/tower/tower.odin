@@ -38,7 +38,7 @@ FOOD_POS :: Vec2f{500.0, 400.0}
 WOOD_POS :: Vec2f{300.0, 100.0}
 
 TOWER_SPOT :: Vec2f{500.0, 120.0}
-ENEMY_SPAWN :: Vec2f{WINDOW_WIDTH - 8.0, WINDOW_HEIGHT - 8.0}
+ENEMY_SPAWN :: Vec2f{WINDOW_WIDTH - 50.0, WINDOW_HEIGHT - 50.0}
 FRAME_LENGTH :: 0.1
 row_list: [GRID_HEIGHT]^Ant
 
@@ -89,6 +89,7 @@ Cell :: struct {
     tilePos: Vec2i,
     elevTile: ^Tile,
     elevTilePos: Vec2i,
+    blocked: bool,
 }
 
 Tile :: struct {
@@ -254,7 +255,7 @@ addToDrawingList :: proc(ant: ^Ant) {
 	}
 }
 
-update_ant :: proc(ant: ^Ant, pheromones: ^PheromoneMap, dt: f32) {
+update_ant :: proc(ant: ^Ant, pheromones: ^PheromoneMap, tiles: ^TileMap, dt: f32) {
 	ant.nextInRow = nil
 
 	if !ant.enemy {
@@ -278,11 +279,26 @@ update_ant :: proc(ant: ^Ant, pheromones: ^PheromoneMap, dt: f32) {
 	ant.pos.x = clamp(ant.pos.x, 0, WINDOW_WIDTH)
 	ant.pos.y = clamp(ant.pos.y, 0, WINDOW_HEIGHT)
 
+	tile_x := int(ant.pos.x / TILE_SIZE)
+	tile_y := int(ant.pos.y / TILE_SIZE)
+	if insideTileGrid(tile_x, tile_y) {
+		cell := tiles[0][tile_x][tile_y]
+		if isBlocked(cell) {
+			ant.pos = ant.pos - ant.dir * ANT_SPEED * dt // TODO
+			ant.dir *= -1
+		}
+	}
+
 	new_cell_x := int(ant.pos.x / CELL_SIZE)
 	new_cell_y := int(ant.pos.y / CELL_SIZE)
 
+
 	updateOccupation(pheromones, new_cell_x, new_cell_y, true)
 	addToDrawingList(ant)
+}
+
+insideTileGrid :: proc(x: int, y: int) -> bool {
+	return x >= 0 && x < WINDOW_WIDTH/TILE_SIZE && y >= 0 && y < WINDOW_HEIGHT/TILE_SIZE
 }
 
 main :: proc() {
@@ -395,10 +411,10 @@ main :: proc() {
 		dt := rl.GetFrameTime()
 
 		for &ant in ants {
-			update_ant(&ant, &pheromones, dt)
+			update_ant(&ant, &pheromones, &layers, dt)
 		}
 		for &ant in enemy_ants {
-			update_ant(&ant, &pheromones, dt)
+			update_ant(&ant, &pheromones, &layers, dt)
 		}
 		task_changed = false
 
@@ -649,6 +665,10 @@ loadMap :: proc(filepath: string, layers: ^TileMap, tiles: ^[4]Tile) {
 		}
 	}
 	fmt.println("Loading")
+}
+
+isBlocked :: proc(cell: Cell) -> bool {
+	return cell.tile == nil || cell.blocked
 }
 
 parseLine :: proc(s: string) -> (Vec2i, Vec2i, string, bool) {
