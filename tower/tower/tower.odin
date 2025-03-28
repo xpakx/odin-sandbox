@@ -39,14 +39,6 @@ ENEMY_SPAWN :: Vec2f{WINDOW_WIDTH - 50.0, WINDOW_HEIGHT - 50.0}
 FRAME_LENGTH :: 0.1
 row_list: [GRID_HEIGHT]^Ant
 
-Animation :: struct {
-	texture: rl.Texture,
-	rows: int,
-	columns: int,
-	animation_start: int,
-	animation_end: int,
-}
-
 Ant :: struct {
     pos: Vec2f,
     dir: Vec2f,
@@ -58,10 +50,7 @@ Ant :: struct {
     frame_timer: f32,
     animation_frame: int,
     nextInRow: ^Ant,
-    walking_animation: Animation,
-    walking_res_animation: Animation,
-    idle_animation: Animation,
-    idle_res_animation: Animation,
+    animations: CharAnimationSet,
 }
 
 PawnTask :: enum {
@@ -271,6 +260,17 @@ main :: proc() {
 		animation_end = 1 * 6 + 5,
 	}
 
+	worker_animations := CharAnimationSet {
+		walking = walking_animation,
+		walking_res = walking_res_animation,
+		idle = idle_animation,
+		idle_res = idle_res_animation,
+	}
+
+	enemy_animations := CharAnimationSet {
+		walking = enemy_walking_animation,
+	}
+
 	ants: [20]Ant
 	enemy_ants: [1]Ant
 	for i in 0..<20 {
@@ -283,10 +283,7 @@ main :: proc() {
 			frame_timer = FRAME_LENGTH,
 			animation_frame = 0,
 			nextInRow = nil,
-			walking_animation = walking_animation,
-			walking_res_animation = walking_res_animation,
-			idle_animation = idle_animation,
-			idle_res_animation = idle_res_animation,
+			animations = worker_animations,
 		}
 	}
 	for i in 0..<1 {
@@ -297,7 +294,7 @@ main :: proc() {
 			task_len = 100.0,
 			frame_timer = FRAME_LENGTH,
 			animation_frame = 0,
-			walking_animation = enemy_walking_animation,
+			animations = enemy_animations,
 		}
 	}
 
@@ -390,41 +387,6 @@ drawAnts :: proc(row_list: ^[GRID_HEIGHT]^Ant, dt: f32) {
 	}
 }
 
-drawAnt :: proc(ant: ^Ant, dt: f32) {
-	animation := ant.walking_res_animation if ant.carrying_food || ant.carrying_wood else ant.walking_animation
-	ant.frame_timer -= dt
-	frames := animation.animation_end - animation.animation_start + 1
-	if ant.frame_timer <= 0 {
-		ant.frame_timer = FRAME_LENGTH + ant.frame_timer
-		ant.animation_frame = (ant.animation_frame + 1) % frames
-	}
-	current_frame := ant.animation_frame + animation.animation_start
-
-	worker_width := f32(animation.texture.width)
-	src_width := worker_width/f32(animation.columns)
-	if ant.dir.x < 0.0 {
-		src_width *= -1
-	}
-	worker_height := f32(animation.texture.height)
-	src_x := current_frame %% animation.rows
-	src_y := current_frame / animation.rows
-	worker_src := rl.Rectangle {
-		x = f32(src_x) * (worker_height / f32(animation.rows)), 
-		y =  f32(src_y) * worker_width / f32(animation.columns),
-		width = src_width,
-		height = worker_height / f32(animation.rows)
-	}
-	middle_x := 0.5*worker_width/(2.0*f32(animation.columns))
-	middle_y := 0.5*worker_height/(2.0*f32(animation.rows))
-	worker_dst := rl.Rectangle {
-		x = ant.pos.x - middle_x,
-		y = ant.pos.y - middle_y,
-		width = 0.5*worker_width / f32(animation.columns),
-		height = 0.5*worker_height / f32(animation.rows)
-	}
-	rl.DrawTexturePro(animation.texture, worker_src, worker_dst, 0, 0, rl.WHITE)
-}
-
 loadTiles :: proc(tiles: ^[4]Tile) {
 	ground_texture := rl.LoadTexture("assets/ground.png")
 	elev_texture := rl.LoadTexture("assets/elevation.png")
@@ -463,7 +425,6 @@ loadTiles :: proc(tiles: ^[4]Tile) {
 		short = false,
 	}
 }
-
 
 drawTile :: proc(x: int, y: int, cell: Cell, elevation: bool = false) {
 	tile := cell.elevTile if elevation else cell.tile
