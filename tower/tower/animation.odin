@@ -8,6 +8,8 @@ Animation :: struct {
 	columns: int,
 	animation_start: int,
 	animation_end: int,
+	src_width: f32,
+	src_height: f32,
 }
 
 CharAnimationSet :: struct {
@@ -21,47 +23,73 @@ createAnimation :: proc (tileset: Tileset, start: Vec2i, end: Vec2i) -> Animatio
 	startIndex := start.x * tileset.columns + start.y
 	endIndex := end.x * tileset.columns + end.y
 
+	width := f32(tileset.texture.width)
+	src_width := width/f32(tileset.columns)
+
+	height := f32(tileset.texture.height)
+	src_height := height/f32(tileset.rows)
+
 	return Animation {
 		texture = tileset.texture,
 		rows = tileset.rows,
 		columns = tileset.columns,
 		animation_start = startIndex,
 		animation_end = endIndex,
+		src_width = src_width,
+		src_height = src_height,
 	}
 }
 
-drawAnt :: proc(ant: ^Ant, dt: f32) {
+selectAnimation :: proc(ant: ^Ant) -> Animation {
 	animations := ant.animations
-	animation := animations.walking_res if ant.carrying_food || ant.carrying_wood else animations.walking
+	if ant.carrying_food || ant.carrying_wood {
+		return animations.walking_res
+	}
+	return animations.walking
+}
+
+updateFrameTimer :: proc(ant: ^Ant, animation: Animation, dt: f32) {
 	ant.frame_timer -= dt
 	frames := animation.animation_end - animation.animation_start + 1
 	if ant.frame_timer <= 0 {
 		ant.frame_timer = FRAME_LENGTH + ant.frame_timer
 		ant.animation_frame = (ant.animation_frame + 1) % frames
 	}
-	current_frame := ant.animation_frame + animation.animation_start
+}
 
-	worker_width := f32(animation.texture.width)
-	src_width := worker_width/f32(animation.columns)
-	if ant.dir.x < 0.0 {
+getSourceRectangle :: proc(animation: Animation, frame: int, dir: Vec2f) -> rl.Rectangle {
+	src_width := animation.src_width
+	if dir.x < 0.0 {
 		src_width *= -1
 	}
-	worker_height := f32(animation.texture.height)
-	src_x := current_frame %% animation.rows
-	src_y := current_frame / animation.rows
-	worker_src := rl.Rectangle {
-		x = f32(src_x) * (worker_height / f32(animation.rows)), 
-		y =  f32(src_y) * worker_width / f32(animation.columns),
+	src_x := frame %% animation.rows
+	src_y := frame / animation.rows
+	return rl.Rectangle {
+		x = f32(src_x) * animation.src_height, 
+		y =  f32(src_y) * animation.src_width,
 		width = src_width,
-		height = worker_height / f32(animation.rows)
+		height = animation.src_height
 	}
-	middle_x := 0.5*worker_width/(2.0*f32(animation.columns))
-	middle_y := 0.5*worker_height/(2.0*f32(animation.rows))
-	worker_dst := rl.Rectangle {
-		x = ant.pos.x - middle_x,
-		y = ant.pos.y - middle_y,
-		width = 0.5*worker_width / f32(animation.columns),
-		height = 0.5*worker_height / f32(animation.rows)
+}
+
+getDestRectangle :: proc(pos: Vec2f, animation: Animation) -> rl.Rectangle {
+	width := 0.5*animation.src_width
+	height := 0.5*animation.src_height
+	return rl.Rectangle {
+		x = pos.x - 0.5*width,
+		y = pos.y - 0.5*height,
+		width = width,
+		height = height
 	}
+}
+
+drawAnt :: proc(ant: ^Ant, dt: f32) {
+	animation := selectAnimation(ant)
+	updateFrameTimer(ant, animation, dt)
+	current_frame := ant.animation_frame + animation.animation_start
+
+	worker_src := getSourceRectangle(animation, current_frame, ant.dir)
+	worker_dst := getDestRectangle(ant.pos, animation)
+
 	rl.DrawTexturePro(animation.texture, worker_src, worker_dst, 0, 0, rl.WHITE)
 }
