@@ -19,14 +19,23 @@ getPheromoneStrength :: proc(ant: ^Ant, pheromones: ^PheromoneMap, cell_x: int, 
 	}
 	if ant.enemy {
 		return 0 //enemy // TODO
-	} else if (ant.homing) {
+	} 
+	if (ant.homing) {
 		return pheromones[x][y].home
-	} else if pawnTask == .Food {
-		return pheromones[x][y].food
-	} else if pawnTask == .Wood {
-		return pheromones[x][y].wood
+	} 
+
+	power: f32
+
+	#partial switch pawnTask {
+	case .Food: power = pheromones[x][y].food
+	case .Wood: power = pheromones[x][y].food
+	case: power = 0.0
 	}
-	return 0
+	if power == 0.0 {
+		power -= pheromones[x][y].home
+	}
+
+	return power
 }
 
 findNewDir :: proc(ant: ^Ant, pheromones: ^PheromoneMap, cell_x: int, cell_y: int) -> Vec2f {
