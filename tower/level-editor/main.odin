@@ -215,6 +215,11 @@ TileType :: enum {
 	Sand,
 }
 
+Mode :: enum {
+	Tiles,
+	Objects,
+}
+
 tileMode :: proc(mouse: Vec2f, tile: TileType, elev: ^Tile, elev2:  ^Tile, grass: ^Tile, sand: ^Tile) {
 	if (rl.IsMouseButtonDown(.LEFT)) {
 		x := int(math.floor(mouse.x/CELL_SIZE))
@@ -244,6 +249,31 @@ tileMode :: proc(mouse: Vec2f, tile: TileType, elev: ^Tile, elev2:  ^Tile, grass
 			if current_layer > 0 && !hasTile(x, y-1, nil, &layers[current_layer]) {
 				addTile(x, y, elev, &layers[current_layer], true)
 			}
+		}
+	}
+}
+
+hasObject :: proc(x: int, y: int, layer: ^Layer) -> bool {
+	if !onMap(x, y, layer) {
+		return false
+	}
+	cell := layer.buildings[x][y]
+	return cell.building != nil
+}
+
+objectMode :: proc(mouse: Vec2f, building: ^Building) {
+	if (rl.IsMouseButtonPressed(.LEFT)) {
+		x := int(math.floor(mouse.x/CELL_SIZE))
+		y := int(math.floor(mouse.y/CELL_SIZE))
+		if onMap(x, y, &layers[current_layer]) {
+			layers[current_layer].buildings[x][y].building = building
+		}
+	}
+	if (rl.IsMouseButtonPressed(.RIGHT)) {
+		x := int(math.floor(mouse.x/CELL_SIZE))
+		y := int(math.floor(mouse.y/CELL_SIZE))
+		if onMap(x, y, &layers[current_layer]) {
+			layers[current_layer].buildings[x][y].building = nil
 		}
 	}
 }
@@ -293,6 +323,7 @@ main :: proc() {
 		short = false,
 	}
 	tile: TileType = .Grass
+	mode: Mode = .Tiles
 
 
 	frameTimer: f32 = FRAME_LENGTH
@@ -301,7 +332,7 @@ main :: proc() {
 	shadow := loadAnimation("assets/shadow.png", 1, 1)
 
 	castle := loadBuilding("assets/castle.png", "castle")
-	layers[0].buildings[5][5] = DCell { &castle }
+	object := &castle
 
 	for !rl.WindowShouldClose() {
 		dt := rl.GetFrameTime()
@@ -310,7 +341,12 @@ main :: proc() {
 		rl.ClearBackground({47, 171, 189, 255})
 
 		mouse := rl.GetMousePosition()
-		tileMode(mouse, tile, &elev, &elev2, &grass, &sand)
+		switch mode {
+		case .Tiles:
+			tileMode(mouse, tile, &elev, &elev2, &grass, &sand)
+		case .Objects:
+			objectMode(mouse, object)
+		}
 
 
 		if rl.IsKeyPressed(.UP) {
@@ -320,12 +356,24 @@ main :: proc() {
 			}
 		} else if rl.IsKeyPressed(.DOWN) {
 			current_layer = math.max(0, current_layer - 1)
+		} else if rl.IsKeyPressed(.B) {
+			mode = .Objects
+		} else if rl.IsKeyPressed(.T) {
+			mode = .Tiles
 		} 
 
 		if rl.IsKeyPressed(.ONE) {
-			tile = .Grass
+			switch mode {
+			case .Objects: 
+			case .Tiles: 
+				tile = .Grass
+			}
 		} else if rl.IsKeyPressed(.TWO) {
-			tile = .Sand
+			switch mode {
+			case .Objects: 
+			case .Tiles: 
+				tile = .Sand
+			}
 		}
 
 		if rl.IsKeyPressed(.S) {
