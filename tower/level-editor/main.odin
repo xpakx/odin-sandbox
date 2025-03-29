@@ -42,43 +42,6 @@ Layer :: struct {
 layers: [dynamic]Layer
 current_layer: int
 
-toTileCoord :: proc(cell: Cell) -> Vec2i {
-	switch cell.dirMap {
-		case 0b1111: return {1, 1}
-		case 0b0001: return {3, 0}
-		case 0b0010: return {0, 3}
-		case 0b0011: return {0, 0}
-		case 0b0100: return {3, 2}
-		case 0b0101: return {3, 1}
-		case 0b0110: return {0, 2}
-		case 0b0111: return {0, 1}
-		case 0b1000: return {2, 3}
-		case 0b1001: return {2, 0}
-		case 0b1010: return {1, 3}
-		case 0b1011: return {1, 0}
-		case 0b1100: return {2, 2}
-		case 0b1101: return {2, 1}
-		case 0b1110: return {1, 2}
-		case: return {3, 3}
-	}
-}
-
-toElevationTileCoord :: proc(cell: Cell) -> Vec2i {
-	if !cell.tile.short {
-		tileCoord := toTileCoord(cell)
-		if 0b0101 & cell.dirMap == 0 {
-			tileCoord.y += 1
-		}
-		return tileCoord
-	}
-	switch cell.dirMap {
-		case 0b0010: return {0, 5}
-		case 0b1000: return {2, 5}
-		case 0b1010: return {1, 5}
-		case: return {3, 5}
-	}
-}
-
 drawTile :: proc(x: int, y: int, layer: Layer, tint: bool, elevation: bool = false) {
 	cell := layer.elevation[x][y] if elevation else layer.cells[x][y]
 	if cell.tile == nil {
@@ -298,11 +261,13 @@ main :: proc() {
 	tile: TileType = .Grass
 	mode: Mode = .Tiles
 
-
 	frameTimer: f32 = FRAME_LENGTH
 	currFrame := 0
-	water := loadAnimation("assets/water.png", 1, 8)
-	shadow := loadAnimation("assets/shadow.png", 1, 1)
+	waterTileSet := tower.loadTileset("assets/water.png", 1, 8)
+	water := tower.createAnimation(waterTileSet, {0, 0}, {0, 8})
+
+	shadowTileSet := tower.loadTileset("assets/shadow.png", 1, 1)
+	shadow := tower.createAnimation(shadowTileSet, {0, 0}, {0, 1})
 
 	castle := loadBuilding("assets/castle.png", "castle")
 	object := &castle
@@ -395,18 +360,18 @@ main :: proc() {
 	}
 }
 
-drawWater :: proc(water: Animation, layer: ^Layer, frame: int = 0) {
+drawWater :: proc(water: tower.Animation, layer: ^Layer, frame: int = 0) {
 	for i in 0..<len(layer.cells) {
 		for j in 0..<len(layer.cells[i]) {
 			if !isEmpty(i, j, layer) {
 				if layer.cells[i][j].dirMap != 0b1111 {
-					middle_x := (1.0/6.0)*water.width
-					middle_y := (1.0/6.0)*water.height
+					middle_x := (1.0/6.0)*water.src_width
+					middle_y := (1.0/6.0)*water.src_height
 					tile_src := rl.Rectangle {
-						x = f32(frame) * water.width, 
+						x = f32(frame) * water.src_width, 
 						y =  f32(0),
-						width = water.width,
-						height = water.height
+						width = water.src_width,
+						height = water.src_height
 					}
 					tile_dst := rl.Rectangle {
 						x = f32(i*CELL_SIZE) - middle_x,
@@ -423,18 +388,18 @@ drawWater :: proc(water: Animation, layer: ^Layer, frame: int = 0) {
 	}
 }
 
-drawShadows :: proc(water: Animation, prevLayer: ^Layer, layer: ^Layer) {
+drawShadows :: proc(water: tower.Animation, prevLayer: ^Layer, layer: ^Layer) {
 	for i in 0..<len(layer.cells) {
 		for j in 0..<len(layer.cells[i]) {
 			if isElevated(i, j, layer) && !isElevated(i+1, j, prevLayer)  {
 				if layer.cells[i][j].dirMap != 0b1111 {
-					middle_x := (1.0/6.0)*water.width
-					middle_y := (1.0/6.0)*water.height
+					middle_x := (1.0/6.0)*water.src_width
+					middle_y := (1.0/6.0)*water.src_height
 					tile_src := rl.Rectangle {
 						x = f32(0) , 
 						y =  f32(0),
-						width = water.width,
-						height = water.height
+						width = water.src_width,
+						height = water.src_height
 					}
 					tile_dst := rl.Rectangle {
 						x = f32(i*CELL_SIZE) - middle_x,
@@ -548,7 +513,7 @@ loadMap :: proc(filepath: string, layers: ^[dynamic]Layer, tileLib: ^TileLibrary
 		case "[elevation]": 
 			tileMode = false
 		case: 
-			pos, name, ok := parseLine(line)
+			pos, _, name, ok := tower.parseLine(line)
 			if !ok {
 				continue
 			}
@@ -566,63 +531,6 @@ loadMap :: proc(filepath: string, layers: ^[dynamic]Layer, tileLib: ^TileLibrary
 		}
 	}
 	fmt.println("Loading")
-}
-
-parseLine :: proc(s: string) -> (Vec2i, string, bool) {
-	ss := strings.split(s, " ")
-
-	if len(ss) != 5 {
-		return {0, 0}, "", false
-	}
-	pos := Vec2i {0, 0}
-	name := ""
-	for i in 0..<5 {
-		if i == 0 {
-			x, ok := strconv.parse_int(ss[0])
-			if !ok {
-				return pos, name, false
-			}
-			pos.x = x
-		}
-		if i == 1 {
-			y, ok := strconv.parse_int(ss[1])
-			if !ok {
-				return pos, name, false
-			}
-			pos.y = y
-		}
-		if i == 4 {
-			name = ss[i]
-		}
-	}
-
-	return pos, name, true
-}
-
-Animation :: struct {
-	texture: rl.Texture,
-	rows: int,
-	columns: int,
-	width: f32,
-	height: f32,
-	animation_start: int,
-	animation_end: int,
-}
-
-loadAnimation :: proc(s: cstring, rows: int = 1, columns: int = 1) -> Animation {
-	texture := rl.LoadTexture(s)
-
-	width := f32(texture.width)/f32(columns)
-	height := f32(texture.height)/f32(rows)
-	return Animation {
-		texture = texture,
-		rows = rows,
-		columns = columns,
-		animation_start = 0,
-		animation_end = 8,
-		width = width,
-		height = height,
-	}
 }
 
 Building :: struct {
