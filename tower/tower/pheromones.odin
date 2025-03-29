@@ -26,7 +26,7 @@ getPheromoneStrength :: proc(ant: ^Ant, pheromones: ^PheromoneMap, cell_x: int, 
 		return 0 
 	}
 
-	if (collision_avoidance && pheromones[x][y].occupied) {
+	if (collisionAvoidance && pheromones[x][y].occupied) {
 		return 0
 	}
 	if ant.enemy {
@@ -125,6 +125,14 @@ decayPheromones :: proc(pheromones: ^PheromoneMap, dt: f32) {
 			} else {
 				pheromones[x][y].wood -= decay
 			}
+		}
+	}
+}
+
+clearPheromones :: proc(pheromones: ^PheromoneMap) {
+	for x in 0..<WINDOW_WIDTH/CELL_SIZE {
+		for y in 0..<WINDOW_HEIGHT/CELL_SIZE {
+			pheromones[x][y] = PheromoneCell{0, 0, 0, 0, false}
 		}
 	}
 }

@@ -36,9 +36,9 @@ drawPheromones :: proc(pheromones: ^PheromoneMap) {
 // TODO
 drawStructures :: proc() {
 	rl.DrawCircleV(HOME_POS, HOME_RADIUS, rl.BLUE)
-	rl.DrawCircleV(FOOD_POS, food_radius, rl.GREEN)
-	rl.DrawCircleV(WOOD_POS, wood_radius, rl.BROWN)
-	rl.DrawCircleV(TOWER_SPOT, wood_radius, rl.GRAY)
+	rl.DrawCircleV(FOOD_POS, foodRadius, rl.GREEN)
+	rl.DrawCircleV(WOOD_POS, woodRadius, rl.BROWN)
+	rl.DrawCircleV(TOWER_SPOT, woodRadius, rl.GRAY)
 }
 
 drawAnts :: proc(row_list: ^RowList, dt: f32) {

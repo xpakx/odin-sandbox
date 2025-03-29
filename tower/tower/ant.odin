@@ -19,6 +19,21 @@ Ant :: struct {
     animations: CharAnimationSet,
 }
 
+createAnt :: proc(position: Vec2f, animations: CharAnimationSet, enemy: bool = false) -> Ant {
+	return Ant{
+		pos = position,
+		dir = randDirection(),
+		homing = false,
+		carrying_food = false,
+		task_len = 100.0,
+		frame_timer = FRAME_LENGTH,
+		animation_frame = 0,
+		nextInRow = nil,
+		enemy = enemy,
+		animations = animations,
+	}
+}
+
 updateTasks :: proc(ant: ^Ant, dt: f32) {
 	ant.task_len = max(ant.task_len - dt, 0.0)
 
@@ -30,20 +45,20 @@ updateTasks :: proc(ant: ^Ant, dt: f32) {
 			ant.carrying_food = false
 			ant.carrying_wood = false
 			ant.homing = false
-			ant.dir = rand_direction()
+			ant.dir = randDirection()
 			ant.task_len = 100.0
 		} 
-	} else if pawnTask == .Food && rl.Vector2Distance(ant.pos, FOOD_POS) < food_radius && !ant.carrying_food && !ant.carrying_wood {
+	} else if pawnTask == .Food && rl.Vector2Distance(ant.pos, FOOD_POS) < foodRadius && !ant.carrying_food && !ant.carrying_wood {
 		// food_radius -= 0.2
 		ant.carrying_food = true
 		ant.homing = true
-		ant.dir = rand_direction()
+		ant.dir = randDirection()
 		ant.task_len = 100.0
-	} else if pawnTask == .Wood && rl.Vector2Distance(ant.pos, WOOD_POS) < wood_radius && !ant.carrying_wood && !ant.carrying_food {
+	} else if pawnTask == .Wood && rl.Vector2Distance(ant.pos, WOOD_POS) < woodRadius && !ant.carrying_wood && !ant.carrying_food {
 		// wood_radius -= 0.2
 		ant.carrying_wood = true
 		ant.homing = true
-		ant.dir = rand_direction()
+		ant.dir = randDirection()
 		ant.task_len = 100.0
 	}
 
@@ -52,7 +67,7 @@ updateTasks :: proc(ant: ^Ant, dt: f32) {
 	}
 }
 
-update_ant :: proc(ant: ^Ant, pheromones: ^PheromoneMap, tiles: ^TileMap, dt: f32) {
+updateAnt :: proc(ant: ^Ant, pheromones: ^PheromoneMap, tiles: ^TileMap, dt: f32) {
 	ant.nextInRow = nil
 
 	if !ant.enemy {

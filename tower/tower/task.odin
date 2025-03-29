@@ -10,7 +10,7 @@ pawnTask: PawnTask
 task_changed: bool
 
 updateOccupation :: proc(pheromones: ^PheromoneMap, x: int, y: int, value: bool) {
-	if (!collision_avoidance) {
+	if (!collisionAvoidance) {
 		return
 	}
 	if insideGrid(x, y) {

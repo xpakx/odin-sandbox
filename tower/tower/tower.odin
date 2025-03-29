@@ -14,15 +14,15 @@ CELL_SIZE :: 8
 GRID_WIDTH :: WINDOW_WIDTH/CELL_SIZE
 GRID_HEIGHT :: WINDOW_HEIGHT/CELL_SIZE
 
-collision_avoidance: bool
+collisionAvoidance: bool
 sound: rl.Sound
 
 Vec2i :: [2]int
 Vec2f :: [2]f32
 
 HOME_RADIUS :: 20.0
-food_radius: f32
-wood_radius: f32
+foodRadius: f32
+woodRadius: f32
 HOME_POS :: Vec2f{50.0, 50.0}
 FOOD_POS :: Vec2f{500.0, 400.0}
 WOOD_POS :: Vec2f{300.0, 100.0}
@@ -31,7 +31,10 @@ TOWER_SPOT :: Vec2f{500.0, 120.0}
 ENEMY_SPAWN :: Vec2f{WINDOW_WIDTH - 50.0, WINDOW_HEIGHT - 50.0}
 FRAME_LENGTH :: 0.1
 
-rand_direction :: proc() -> Vec2f {
+WORKERS :: 20
+ENEMIES :: 1
+
+randDirection :: proc() -> Vec2f {
 	angle := rand.float32() * 2 * math.PI
 	return Vec2f{math.cos(angle), math.sin(angle)}
 }
@@ -54,9 +57,9 @@ main :: proc() {
 
 	pawnTask = .Food
 
-	food_radius = 20.0
-	wood_radius = 20.0
-	collision_avoidance = true
+	foodRadius = 20.0
+	woodRadius = 20.0
+	collisionAvoidance = true
 
 	workerTileset := loadTileset("assets/worker.png", 6, 6)
 	enemyTileset := loadTileset("assets/enemy_knight.png", 8, 6)
@@ -68,50 +71,27 @@ main :: proc() {
 
 	enemyWalkingAnimation := createAnimation(enemyTileset, {1, 0}, {1, 5})
 
-	worker_animations := CharAnimationSet {
+	workerAnimations := CharAnimationSet {
 		walking = walkingAnimation,
 		walking_res = walkingResAnimation,
 		idle = idleAnimation,
 		idle_res = idleResAnimation,
 	}
 
-	enemy_animations := CharAnimationSet {
+	enemyAnimations := CharAnimationSet {
 		walking = enemyWalkingAnimation,
 	}
 
-	ants: [20]Ant
-	enemy_ants: [1]Ant
-	for i in 0..<20 {
-		ants[i] = Ant{
-			pos = HOME_POS,
-			dir = rand_direction(),
-			homing = false,
-			carrying_food = false,
-			task_len = 100.0,
-			frame_timer = FRAME_LENGTH,
-			animation_frame = 0,
-			nextInRow = nil,
-			animations = worker_animations,
-		}
+	ants: [WORKERS+ENEMIES]Ant
+	for i in 0..<WORKERS {
+		ants[i] = createAnt(HOME_POS, workerAnimations)
 	}
-	for i in 0..<1 {
-		enemy_ants[i] = Ant{
-			pos = ENEMY_SPAWN,
-			dir = rand_direction(),
-			enemy = true,
-			task_len = 100.0,
-			frame_timer = FRAME_LENGTH,
-			animation_frame = 0,
-			animations = enemy_animations,
-		}
+	for i in 0..<ENEMIES {
+		ants[WORKERS+i] = createAnt(ENEMY_SPAWN, enemyAnimations, enemy=true)
 	}
 
 	pheromones: PheromoneMap
-	for x in 0..<WINDOW_WIDTH/CELL_SIZE {
-		for y in 0..<WINDOW_HEIGHT/CELL_SIZE {
-			pheromones[x][y] = PheromoneCell{0, 0, 0, 0, false}
-		}
-	}
+	clearPheromones(&pheromones)
 
 	layers: TileMap
 	loadMap("assets/001.map", &layers, &tiles)
@@ -123,10 +103,7 @@ main :: proc() {
 		dt := rl.GetFrameTime()
 
 		for &ant in ants {
-			update_ant(&ant, &pheromones, &layers, dt)
-		}
-		for &ant in enemy_ants {
-			update_ant(&ant, &pheromones, &layers, dt)
+			updateAnt(&ant, &pheromones, &layers, dt)
 		}
 		task_changed = false
 
