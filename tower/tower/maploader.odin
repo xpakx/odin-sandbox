@@ -45,6 +45,9 @@ loadMap :: proc(filepath: string, layers: ^TileMap, tiles: ^[4]Tile) {
 			} else {
 				layers[currentLayer][pos.x][pos.y].elevTile = tile
 				layers[currentLayer][pos.x][pos.y].elevTilePos = tilePos
+				if (currentLayer > 0) {
+					layers[currentLayer-1][pos.x][pos.y].blocked = true
+				}
 			}
 		}
 	}
