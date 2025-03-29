@@ -34,6 +34,24 @@ FRAME_LENGTH :: 0.1
 WORKERS :: 20
 ENEMIES :: 1
 
+BuildingType :: enum {
+	HomeArea,
+	WoodArea,
+	FoodArea,
+}
+
+buildings: [1]Building
+Buildings :: [1]Building
+
+Building :: struct {
+	name: string,
+	type: BuildingType,
+	texture: rl.Texture,
+	size: Vec2f,
+	radius: f32,
+	pos: Vec2f,
+}
+
 randDirection :: proc() -> Vec2f {
 	angle := rand.float32() * 2 * math.PI
 	return Vec2f{math.cos(angle), math.sin(angle)}
@@ -96,6 +114,19 @@ main :: proc() {
 	layers: TileMap
 	loadMap("assets/001.map", &layers, &tiles)
 
+
+	castleTexture := rl.LoadTexture("assets/castle.png")
+
+	castle := Building {
+		name = "castle",
+		type = .HomeArea,
+		texture = castleTexture,
+		size = {f32(castleTexture.width), f32(castleTexture.height)},
+		radius = HOME_RADIUS,
+		pos = HOME_POS,
+	}
+	buildings[0] = castle
+
 	for !rl.WindowShouldClose() {
 		if rl.IsKeyPressed(.Q) {
 			break;
@@ -110,7 +141,7 @@ main :: proc() {
 		decayPheromones(&pheromones, dt)
 
 		rl.BeginDrawing()
-		draw(&pheromones, &layers, &row_list, dt)
+		draw(&pheromones, &layers, &row_list, &buildings, dt)
 		rl.EndDrawing()
 	}
 }

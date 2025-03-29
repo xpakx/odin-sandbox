@@ -5,13 +5,13 @@ import rl "vendor:raylib"
 RowList :: [GRID_HEIGHT]^Ant
 row_list: RowList
 
-draw :: proc(pheromones: ^PheromoneMap, layers: ^TileMap, row_list: ^RowList, dt: f32) {
+draw :: proc(pheromones: ^PheromoneMap, layers: ^TileMap, row_list: ^RowList, buildings: ^Buildings, dt: f32) {
 	drawBackground()
 	drawTiles(layers)
 	if (DEBUG) {
 		drawPheromones(pheromones)
 	}
-	drawStructures()
+	drawStructures(buildings)
 	drawAnts(row_list, dt)
 }
 
@@ -34,11 +34,32 @@ drawPheromones :: proc(pheromones: ^PheromoneMap) {
 }
 
 // TODO
-drawStructures :: proc() {
-	rl.DrawCircleV(HOME_POS, HOME_RADIUS, rl.BLUE)
+drawStructures :: proc(buildings: ^Buildings) {
 	rl.DrawCircleV(FOOD_POS, foodRadius, rl.GREEN)
 	rl.DrawCircleV(WOOD_POS, woodRadius, rl.BROWN)
 	rl.DrawCircleV(TOWER_SPOT, woodRadius, rl.GRAY)
+	for building in buildings {
+		rl.DrawCircleV(building.pos, building.radius, rl.BLUE)
+		drawBuilding(building)
+	}
+}
+
+drawBuilding :: proc(building: Building) {
+	middle_x := (1.0/6.0)*building.size.x
+	middle_y := (1.0/6.0)*building.size.y
+	tile_src := rl.Rectangle {
+		x = f32(0), 
+		y =  f32(0),
+		width = building.size.x,
+		height = building.size.y
+	}
+	tile_dst := rl.Rectangle {
+		x = building.pos.x - middle_x,
+		y = building.pos.y - middle_y,
+		width = f32(TILE_SIZE)*3.0,
+		height = f32(TILE_SIZE)*3.0,
+	}
+	rl.DrawTexturePro(building.texture, tile_src, tile_dst, 0, 0, rl.WHITE)
 }
 
 drawAnts :: proc(row_list: ^RowList, dt: f32) {
