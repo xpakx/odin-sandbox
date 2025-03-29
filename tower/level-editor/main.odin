@@ -1,5 +1,5 @@
 #+feature dynamic-literals
-package tower
+package toweredit
 
 import "core:fmt"
 import rl "vendor:raylib"
@@ -9,6 +9,8 @@ import "core:time"
 import "core:os"
 import "core:strings"
 import "core:strconv"
+
+import "../tower"
 
 WINDOW_WIDTH :: 640
 WINDOW_HEIGHT :: 480
@@ -22,18 +24,8 @@ FRAME_LENGTH :: 0.1
 Vec2i :: [2]int
 Vec2f :: [2]f32
 
-Tile :: struct {
-	name: string,
-	short: bool,
-	texture: rl.Texture,
-	rows: int,
-	columns: int,
-	x: int,
-	y: int,
-}
-
 Cell :: struct {
-	tile: ^Tile,
+	tile: ^tower.Tile,
 	dirMap: u8,
 }
 
@@ -117,7 +109,7 @@ drawTile :: proc(x: int, y: int, layer: Layer, tint: bool, elevation: bool = fal
 	rl.DrawTexturePro(tile.texture, tile_src, tile_dst, 0, 0, color)
 }
 
-hasTile :: proc(x: int, y: int, tile: ^Tile, layer: ^Layer, elevation: bool = false) -> bool {
+hasTile :: proc(x: int, y: int, tile: ^tower.Tile, layer: ^Layer, elevation: bool = false) -> bool {
 	if !onMap(x, y, layer) {
 		return false
 	}
@@ -163,7 +155,7 @@ updateNeighbour :: proc(x: int, y: int, dirMap: u8, layer: ^Layer, elevation: bo
 	}
 }
 
-processNewTileForNeighbour :: proc(x: int, y: int, tile: ^Tile, layer: ^Layer, maskNeigh: u8, maskSelf: u8, elevation: bool = false) -> u8 {
+processNewTileForNeighbour :: proc(x: int, y: int, tile: ^tower.Tile, layer: ^Layer, maskNeigh: u8, maskSelf: u8, elevation: bool = false) -> u8 {
 	if hasTile(x, y, tile, layer, elevation) {
 		updateNeighbour(x, y, maskNeigh, layer, elevation)
 		return maskSelf
@@ -171,7 +163,7 @@ processNewTileForNeighbour :: proc(x: int, y: int, tile: ^Tile, layer: ^Layer, m
 	return 0
 }
 
-addTile :: proc(x: int, y: int, tile: ^Tile, layer: ^Layer, elevation: bool = false) {
+addTile :: proc(x: int, y: int, tile: ^tower.Tile, layer: ^Layer, elevation: bool = false) {
 	if elevation && tile.short && !isEmpty(x, y, layer) {
 		return
 	}
@@ -224,7 +216,7 @@ tileMode :: proc(mouse: Vec2f, tile: TileType, tileLib: ^TileLibrary) {
 	if (rl.IsMouseButtonDown(.LEFT)) {
 		x := int(math.floor(mouse.x/CELL_SIZE))
 		y := int(math.floor(mouse.y/CELL_SIZE))
-		current_tile: ^Tile
+		current_tile: ^tower.Tile
 		switch tile {
 		case .Grass: current_tile = &tileLib.grass
 		case .Sand: current_tile = &tileLib.sand
@@ -280,10 +272,10 @@ objectMode :: proc(mouse: Vec2f, building: ^Building) {
 
 
 TileLibrary :: struct {
-	grass: Tile,
-	sand: Tile,
-	elev: Tile,
-	elev2: Tile,
+	grass: tower.Tile,
+	sand: tower.Tile,
+	elev: tower.Tile,
+	elev2: tower.Tile,
 }
 
 main :: proc() {
@@ -297,40 +289,12 @@ main :: proc() {
 	ground_texture := rl.LoadTexture("assets/ground.png")
 	elev_texture := rl.LoadTexture("assets/elevation.png")
 	tileLib := TileLibrary {}
-	tileLib.grass = Tile {
-		name = "grass",
-		texture = ground_texture,
-		rows = 4,
-		columns = 10,
-		x = 0,
-		y = 0,
-	}
-	tileLib.sand = Tile {
-		name = "sand",
-		texture = ground_texture,
-		rows = 4,
-		columns = 10,
-		x = 5,
-		y = 0,
-	}
-	tileLib.elev = Tile {
-		name = "elevation",
-		texture = elev_texture,
-		rows = 8,
-		columns = 4,
-		x = 0,
-		y = 0,
-		short = true,
-	}
-	tileLib.elev2 = Tile {
-		name = "elev2",
-		texture = elev_texture,
-		rows = 8,
-		columns = 4,
-		x = 0,
-		y = 0,
-		short = false,
-	}
+	tiles: [4]tower.Tile
+	tower.loadTiles(&tiles)
+	tileLib.grass = tiles[0]
+	tileLib.sand = tiles[1]
+	tileLib.elev = tiles[2]
+	tileLib.elev2 = tiles[3]
 	tile: TileType = .Grass
 	mode: Mode = .Tiles
 
@@ -588,7 +552,7 @@ loadMap :: proc(filepath: string, layers: ^[dynamic]Layer, tileLib: ^TileLibrary
 			if !ok {
 				continue
 			}
-			tile: ^Tile
+			tile: ^tower.Tile
 			switch name {
 				case "grass": tile = &tileLib.grass
 				case "sand": tile = &tileLib.sand
