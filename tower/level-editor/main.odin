@@ -20,6 +20,7 @@ GRID_HEIGHT :: WINDOW_HEIGHT/CELL_SIZE
 FRAME_LENGTH :: 0.1
 
 Vec2i :: [2]int
+Vec2f :: [2]f32
 
 Tile :: struct {
 	name: string,
@@ -214,6 +215,39 @@ TileType :: enum {
 	Sand,
 }
 
+tileMode :: proc(mouse: Vec2f, tile: TileType, elev: ^Tile, elev2:  ^Tile, grass: ^Tile, sand: ^Tile) {
+	if (rl.IsMouseButtonDown(.LEFT)) {
+		x := int(math.floor(mouse.x/CELL_SIZE))
+		y := int(math.floor(mouse.y/CELL_SIZE))
+		current_tile: ^Tile
+		switch tile {
+		case .Grass: current_tile = grass
+		case .Sand: current_tile = sand
+		}
+		if !hasTile(x, y, current_tile, &layers[current_layer]) {
+			addTile(x, y, current_tile, &layers[current_layer])
+			if(current_layer > 0) {
+				addTile(x, y, elev2, &layers[current_layer], true)
+				addTile(x, y+1, elev, &layers[current_layer], true);
+			}
+		}
+	}
+	if (rl.IsMouseButtonDown(.RIGHT)) {
+		x := int(math.floor(mouse.x/CELL_SIZE))
+		y := int(math.floor(mouse.y/CELL_SIZE))
+		if !hasTile(x, y, nil, &layers[current_layer]) {
+			deleteTile(x, y, &layers[current_layer])
+			deleteTile(x, y, &layers[current_layer], true)
+			if hasTile(x, y+1, elev, &layers[current_layer], true) {
+				deleteTile(x, y+1, &layers[current_layer], true)
+			}
+			if current_layer > 0 && !hasTile(x, y-1, nil, &layers[current_layer]) {
+				addTile(x, y, elev, &layers[current_layer], true)
+			}
+		}
+	}
+}
+
 main :: proc() {
 	rl.SetConfigFlags({.VSYNC_HINT})
 	rl.InitWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "Tower")
@@ -276,36 +310,9 @@ main :: proc() {
 		rl.ClearBackground({47, 171, 189, 255})
 
 		mouse := rl.GetMousePosition()
-		if (rl.IsMouseButtonDown(.LEFT)) {
-			x := int(math.floor(mouse.x/CELL_SIZE))
-			y := int(math.floor(mouse.y/CELL_SIZE))
-			current_tile: ^Tile
-			switch tile {
-				case .Grass: current_tile = &grass
-				case .Sand: current_tile = &sand
-			}
-			if !hasTile(x, y, current_tile, &layers[current_layer]) {
-				addTile(x, y, current_tile, &layers[current_layer])
-				if(current_layer > 0) {
-					addTile(x, y, &elev2, &layers[current_layer], true)
-					addTile(x, y+1, &elev, &layers[current_layer], true);
-				}
-			}
-		}
-		if (rl.IsMouseButtonDown(.RIGHT)) {
-			x := int(math.floor(mouse.x/CELL_SIZE))
-			y := int(math.floor(mouse.y/CELL_SIZE))
-			if !hasTile(x, y, nil, &layers[current_layer]) {
-				deleteTile(x, y, &layers[current_layer])
-				deleteTile(x, y, &layers[current_layer], true)
-				if hasTile(x, y+1, &elev, &layers[current_layer], true) {
-					deleteTile(x, y+1, &layers[current_layer], true)
-				}
-				if current_layer > 0 && !hasTile(x, y-1, nil, &layers[current_layer]) {
-					addTile(x, y, &elev, &layers[current_layer], true)
-				}
-			}
-		}
+		tileMode(mouse, tile, &elev, &elev2, &grass, &sand)
+
+
 		if rl.IsKeyPressed(.UP) {
 			current_layer += 1
 			if current_layer >= len(layers) {
