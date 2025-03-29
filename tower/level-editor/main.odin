@@ -30,7 +30,7 @@ Cell :: struct {
 }
 
 DCell :: struct {
-	building: ^Building,
+	building: tower.Building,
 }
 
 Layer :: struct {
@@ -213,22 +213,25 @@ hasObject :: proc(x: int, y: int, layer: ^Layer) -> bool {
 		return false
 	}
 	cell := layer.buildings[x][y]
-	return cell.building != nil
+	return cell.building.pos != {0.0, 0.0}
 }
 
-objectMode :: proc(mouse: Vec2f, building: ^Building) {
+objectMode :: proc(mouse: Vec2f, building: ^tower.BuildingTile) {
 	if (rl.IsMouseButtonPressed(.LEFT)) {
 		x := int(math.floor(mouse.x/CELL_SIZE))
 		y := int(math.floor(mouse.y/CELL_SIZE))
 		if onMap(x, y, &layers[current_layer]) {
-			layers[current_layer].buildings[x][y].building = building
+			layers[current_layer].buildings[x][y].building = tower.Building {
+				proto = building,
+				pos = {mouse.x, mouse.y}
+			}
 		}
 	}
 	if (rl.IsMouseButtonPressed(.RIGHT)) {
 		x := int(math.floor(mouse.x/CELL_SIZE))
 		y := int(math.floor(mouse.y/CELL_SIZE))
 		if onMap(x, y, &layers[current_layer]) {
-			layers[current_layer].buildings[x][y].building = nil
+			layers[current_layer].buildings[x][y].building.pos = {0.0, 0.0}
 		}
 	}
 }
@@ -270,6 +273,7 @@ main :: proc() {
 	shadow := tower.createAnimation(shadowTileSet, {0, 0}, {0, 1})
 
 	castle := loadBuilding("assets/castle.png", "castle")
+
 	object := &castle
 
 	for !rl.WindowShouldClose() {
@@ -418,26 +422,11 @@ drawShadows :: proc(water: tower.Animation, prevLayer: ^Layer, layer: ^Layer) {
 
 drawBuilding :: proc(i: int, j: int, layer: Layer) {
 	cell :=  layer.buildings[i][j]
-	if cell.building == nil {
+	if cell.building.pos == {0.0, 0.0} {
 		return
 	}
 	building := cell.building
-
-	middle_x := (1.0/6.0)*building.width
-	middle_y := (1.0/6.0)*building.height
-	tile_src := rl.Rectangle {
-		x = f32(0) , 
-		y =  f32(0),
-		width = building.width,
-		height = building.height
-	}
-	tile_dst := rl.Rectangle {
-		x = f32(i*CELL_SIZE) - middle_x,
-		y = f32(j*CELL_SIZE) - middle_y,
-		width = f32(CELL_SIZE)*3.0,
-		height = f32(CELL_SIZE)*3.0,
-	}
-	rl.DrawTexturePro(building.texture, tile_src, tile_dst, 0, 0, rl.WHITE)
+	tower.drawBuilding(building)
 }
 
 prepareTiles :: proc(builder: ^strings.Builder, cells: [GRID_WIDTH][GRID_HEIGHT]Cell, elevation: bool = false) {
@@ -533,22 +522,16 @@ loadMap :: proc(filepath: string, layers: ^[dynamic]Layer, tileLib: ^TileLibrary
 	fmt.println("Loading")
 }
 
-Building :: struct {
-	name: string,
-	texture: rl.Texture,
-	width: f32,
-	height: f32,
-}
-
-loadBuilding :: proc(s: cstring, name: string) -> Building {
+loadBuilding :: proc(s: cstring, name: string) -> tower.BuildingTile {
 	texture := rl.LoadTexture(s)
-
-	width := f32(texture.width)
-	height := f32(texture.height)
-	return Building {
-		texture = texture,
-		width = width,
-		height = height,
+	return tower.BuildingTile {
 		name = name,
+		type = .HomeArea,
+		texture = texture,
+		imgWidth = f32(texture.width),
+		imgHeight = f32(texture.height),
+		width = f32(texture.width)/2.0,
+		height = f32(texture.height)/2.0,
+		radius = 10.0,
 	}
 }
