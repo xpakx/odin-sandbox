@@ -220,20 +220,20 @@ Mode :: enum {
 	Objects,
 }
 
-tileMode :: proc(mouse: Vec2f, tile: TileType, elev: ^Tile, elev2:  ^Tile, grass: ^Tile, sand: ^Tile) {
+tileMode :: proc(mouse: Vec2f, tile: TileType, tileLib: ^TileLibrary) {
 	if (rl.IsMouseButtonDown(.LEFT)) {
 		x := int(math.floor(mouse.x/CELL_SIZE))
 		y := int(math.floor(mouse.y/CELL_SIZE))
 		current_tile: ^Tile
 		switch tile {
-		case .Grass: current_tile = grass
-		case .Sand: current_tile = sand
+		case .Grass: current_tile = &tileLib.grass
+		case .Sand: current_tile = &tileLib.sand
 		}
 		if !hasTile(x, y, current_tile, &layers[current_layer]) {
 			addTile(x, y, current_tile, &layers[current_layer])
 			if(current_layer > 0) {
-				addTile(x, y, elev2, &layers[current_layer], true)
-				addTile(x, y+1, elev, &layers[current_layer], true);
+				addTile(x, y, &tileLib.elev2, &layers[current_layer], true)
+				addTile(x, y+1, &tileLib.elev, &layers[current_layer], true);
 			}
 		}
 	}
@@ -243,11 +243,11 @@ tileMode :: proc(mouse: Vec2f, tile: TileType, elev: ^Tile, elev2:  ^Tile, grass
 		if !hasTile(x, y, nil, &layers[current_layer]) {
 			deleteTile(x, y, &layers[current_layer])
 			deleteTile(x, y, &layers[current_layer], true)
-			if hasTile(x, y+1, elev, &layers[current_layer], true) {
+			if hasTile(x, y+1, &tileLib.elev, &layers[current_layer], true) {
 				deleteTile(x, y+1, &layers[current_layer], true)
 			}
 			if current_layer > 0 && !hasTile(x, y-1, nil, &layers[current_layer]) {
-				addTile(x, y, elev, &layers[current_layer], true)
+				addTile(x, y, &tileLib.elev, &layers[current_layer], true)
 			}
 		}
 	}
@@ -278,9 +278,17 @@ objectMode :: proc(mouse: Vec2f, building: ^Building) {
 	}
 }
 
+
+TileLibrary :: struct {
+	grass: Tile,
+	sand: Tile,
+	elev: Tile,
+	elev2: Tile,
+}
+
 main :: proc() {
 	rl.SetConfigFlags({.VSYNC_HINT})
-	rl.InitWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "Tower")
+	rl.InitWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "Tower Editor")
 	defer rl.CloseWindow()
 
 	current_layer = 0
@@ -288,7 +296,8 @@ main :: proc() {
 
 	ground_texture := rl.LoadTexture("assets/ground.png")
 	elev_texture := rl.LoadTexture("assets/elevation.png")
-	grass := Tile {
+	tileLib := TileLibrary {}
+	tileLib.grass = Tile {
 		name = "grass",
 		texture = ground_texture,
 		rows = 4,
@@ -296,7 +305,7 @@ main :: proc() {
 		x = 0,
 		y = 0,
 	}
-	sand := Tile {
+	tileLib.sand = Tile {
 		name = "sand",
 		texture = ground_texture,
 		rows = 4,
@@ -304,7 +313,7 @@ main :: proc() {
 		x = 5,
 		y = 0,
 	}
-	elev := Tile {
+	tileLib.elev = Tile {
 		name = "elevation",
 		texture = elev_texture,
 		rows = 8,
@@ -313,7 +322,7 @@ main :: proc() {
 		y = 0,
 		short = true,
 	}
-	elev2 := Tile {
+	tileLib.elev2 = Tile {
 		name = "elev2",
 		texture = elev_texture,
 		rows = 8,
@@ -343,7 +352,7 @@ main :: proc() {
 		mouse := rl.GetMousePosition()
 		switch mode {
 		case .Tiles:
-			tileMode(mouse, tile, &elev, &elev2, &grass, &sand)
+			tileMode(mouse, tile, &tileLib)
 		case .Objects:
 			objectMode(mouse, object)
 		}
@@ -365,6 +374,7 @@ main :: proc() {
 		if rl.IsKeyPressed(.ONE) {
 			switch mode {
 			case .Objects: 
+				object = &castle
 			case .Tiles: 
 				tile = .Grass
 			}
@@ -381,7 +391,7 @@ main :: proc() {
 			saveMap("assets/001.map", mapData)
 		}
 		if rl.IsKeyPressed(.O) {
-			loadMap("assets/001.map", &layers, &grass, &sand, &elev, &elev2)
+			loadMap("assets/001.map", &layers, &tileLib)
 			current_layer = 0
 		}
 		if rl.IsKeyPressed(.Q) {
@@ -553,7 +563,7 @@ saveMap :: proc(filepath: string, data: string) {
 	}
 }
 
-loadMap :: proc(filepath: string, layers: ^[dynamic]Layer, grass: ^Tile, sand: ^Tile, elev: ^Tile, elev2: ^Tile) {
+loadMap :: proc(filepath: string, layers: ^[dynamic]Layer, tileLib: ^TileLibrary) {
 	data, ok := os.read_entire_file(filepath)
 	defer delete(data)
 	if !ok {
@@ -580,10 +590,10 @@ loadMap :: proc(filepath: string, layers: ^[dynamic]Layer, grass: ^Tile, sand: ^
 			}
 			tile: ^Tile
 			switch name {
-				case "grass": tile = grass
-				case "sand": tile = sand
-				case "elevation": tile = elev
-				case "elev2": tile = elev2
+				case "grass": tile = &tileLib.grass
+				case "sand": tile = &tileLib.sand
+				case "elevation": tile = &tileLib.elev
+				case "elev2": tile = &tileLib.elev2
 			}
 			if tile == nil {
 				continue
