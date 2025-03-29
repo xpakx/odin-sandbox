@@ -39,27 +39,28 @@ drawStructures :: proc(buildings: ^Buildings) {
 	rl.DrawCircleV(WOOD_POS, woodRadius, rl.BROWN)
 	rl.DrawCircleV(TOWER_SPOT, woodRadius, rl.GRAY)
 	for building in buildings {
-		rl.DrawCircleV(building.pos, building.radius, rl.BLUE)
+		rl.DrawCircleV(building.pos, building.proto.radius, rl.BLUE)
 		drawBuilding(building)
 	}
 }
 
 drawBuilding :: proc(building: Building) {
-	middle_x := (1.0/6.0)*building.size.x
-	middle_y := (1.0/6.0)*building.size.y
+	tile := building.proto
+	middle_x := tile.width/2.0
+	middle_y := tile.height/2.0
 	tile_src := rl.Rectangle {
 		x = f32(0), 
 		y =  f32(0),
-		width = building.size.x,
-		height = building.size.y
+		width = tile.imgWidth,
+		height = tile.imgHeight
 	}
 	tile_dst := rl.Rectangle {
 		x = building.pos.x - middle_x,
 		y = building.pos.y - middle_y,
-		width = f32(TILE_SIZE)*3.0,
-		height = f32(TILE_SIZE)*3.0,
+		width = tile.width,
+		height = tile.height,
 	}
-	rl.DrawTexturePro(building.texture, tile_src, tile_dst, 0, 0, rl.WHITE)
+	rl.DrawTexturePro(tile.texture, tile_src, tile_dst, 0, 0, rl.WHITE)
 }
 
 drawAnts :: proc(row_list: ^RowList, dt: f32) {

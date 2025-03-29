@@ -23,8 +23,8 @@ Vec2f :: [2]f32
 HOME_RADIUS :: 20.0
 foodRadius: f32
 woodRadius: f32
-HOME_POS :: Vec2f{50.0, 50.0}
-FOOD_POS :: Vec2f{500.0, 400.0}
+HOME_POS :: Vec2f{500.0, 300.0}
+FOOD_POS :: Vec2f{50.0, 50.0}
 WOOD_POS :: Vec2f{300.0, 100.0}
 
 TOWER_SPOT :: Vec2f{500.0, 120.0}
@@ -43,12 +43,19 @@ BuildingType :: enum {
 buildings: [1]Building
 Buildings :: [1]Building
 
-Building :: struct {
+BuildingTile :: struct {
 	name: string,
 	type: BuildingType,
 	texture: rl.Texture,
-	size: Vec2f,
+	imgWidth: f32,
+	imgHeight: f32,
+	width: f32,
+	height: f32,
 	radius: f32,
+}
+
+Building :: struct {
+	proto: ^BuildingTile,
 	pos: Vec2f,
 }
 
@@ -114,18 +121,22 @@ main :: proc() {
 	layers: TileMap
 	loadMap("assets/001.map", &layers, &tiles)
 
-
 	castleTexture := rl.LoadTexture("assets/castle.png")
 
-	castle := Building {
+	castle := BuildingTile {
 		name = "castle",
 		type = .HomeArea,
 		texture = castleTexture,
-		size = {f32(castleTexture.width), f32(castleTexture.height)},
+		imgWidth = f32(castleTexture.width),
+		imgHeight = f32(castleTexture.height),
+		width = f32(castleTexture.width)/2.0,
+		height = f32(castleTexture.height)/2.0,
 		radius = HOME_RADIUS,
+	}
+	buildings[0] = Building {
+		proto = &castle,
 		pos = HOME_POS,
 	}
-	buildings[0] = castle
 
 	for !rl.WindowShouldClose() {
 		if rl.IsKeyPressed(.Q) {
